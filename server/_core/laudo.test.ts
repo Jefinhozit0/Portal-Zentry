@@ -182,6 +182,95 @@ describe("extrairContrato (Stellantis CDC Veículos)", () => {
   });
 });
 
+// Itaú CDC Veículos: the name in three pieces, the rates in a table (header above, numbers below), the
+// e-mail on page 2 and a phone without parentheses after the CEP. Personal data replaced.
+const ITAU_CDC = [
+  line(785, "[65]IMPORTANTE: estas são as principais condições do seu financiamento. Leia com atenção e guarde uma via com você!"),
+  line(773, "[30]-ITAU UNIBANCO HOLDING S.A. - CNPJ: 60872504000123 - P. ALFREDO EGYDIO DE SOUZA ARANHA , 100 - - SAO PAULO /- SP (\" [532]Credor [559]\")"),
+  line(761, "[150]CONDIÇÕES ESPECÍFICAS DE OPERAÇÃO DE CRÉDITO DIRETO AO CONSUMIDOR (CDC) – VEÍCULOS"),
+  line(749, "[480]OPERAÇÃO Nº 32114968"),
+  line(679, "[39]Nome do(a) [85]Cliente [112]: JOSE EXEMPLO BARBOSA [492]CPF: 00000000000"),
+  line(667, "[39]Endereço e telefone: R EXEMPLO , 00515 - IRACEMAPOLIS - SP - CEP: 13497142 - 19 999990000"),
+  line(655, "[39]Veiculo: Marca: FORD [180]Modelo: RANGER CD XLS 4X2 2.3 16V G4B [430]Combustível: Gasolina"),
+  line(643, "[39]Ano fab/Modelo: 2006 / 2007 [430]Cor: preta"),
+  line(201, "[388]% a.d: [444]% a.m: [502]% a.a:"),
+  line(195, "[18]F.4 [39]Taxa de juros diaria, mensal e anual:"),
+  line(189, "[387]0,0686 [450]2,08 [505]28,02"),
+  { ...line(700, "[30]E-mail: JOSE.EXEMPLO@LIVE.COM"), page: 2 },
+];
+
+// Santander consignado: no "taxa de juros" label, the bank's address before the client's. Personal data replaced.
+const SANTANDER_CONSIGNADO = [
+  line(817, "[261]CÉDULA DE CRÉDITO BANCÁRIO DE EMPRÉSTIMO"),
+  line(803, "[397]CONSIGNADO Nº [500]783164070"),
+  line(776, "[28]Instituição Financeira: [159]BANCO SANTANDER (BRASIL) S.A."),
+  line(762, "[28]CNPJ Nº [80]90.400.888/0001-42"),
+  line(748, "[28]Endereço: [90]AV. PRES. JUSCELINO KUBITSCHEK, 2041, CEP 04543-011, SÃO PAULO/SP"),
+  line(721, "[28]Nome Cliente: [112]MARIA EXEMPLO DE SOUZA"),
+  line(707, "[28]CPF: [60]000.000.000-00"),
+  line(679, "[28]Endereço: [90]HAVANA, 245, HAVAI, BELO HORIZONTE"),
+  line(428, "[28]Data de Emissão: 27/10/2025"),
+  line(415, "[28]Valor do Empréstimo (financiado): R$ 22.128,62"),
+  line(401, "[28]Valor Solicitado: R$ 19.828,63"),
+  line(387, "[28]IOF: R$ 634,39 [164]Financiado: (X) Sim [282]() Não"),
+  line(359, "[28]Valor da Parcela: R$ 1.201,00"),
+  line(346, "[28]Quantidade de Parcelas: 36"),
+  line(304, "[28]Juros Remuneratórios Pré-Fixado: 3,63% ao mês / 53,45% ao ano"),
+  line(290, "[28]Custo Efetivo Total (CET): 4,38% ao mês /67,35% ao ano"),
+  line(249, "[28]Vencimento da 1ª Parcela: 25/01/2026"),
+];
+
+// Digimais: the standard table (page 11 of the PDF, read first) with the bank only as "Banco Digimais - CNPJ",
+// the ombudsman's e-mail in its footer and the client's e-mail on the cadastro page. Personal data replaced.
+const DIGIMAIS = [
+  { ...line(776, "[127]Banco Digimais - CNPJ: 92.874.270/0001-40"), page: 11 },
+  { ...line(751, "[137]ORÇAMENTO DE OPERAÇÃO DE CRÉDITO DIRETO AO CONSUMIDOR (CDC) - VEÍCULOS"), page: 11 },
+  { ...line(740, "[342]ORÇAMENTO N° 7429941"), page: 11 },
+  { ...line(685, "[59]Nome do(a) consumidor(a): CAIO EXEMPLO FERREIRA [421]CPF do (a) solicitante: 000.000.000-00"), page: 11 },
+  { ...line(674, "[59]Endereço e telefone de contato:Estrada Exemplo, 1052 - Mairipora - SP - Telefone 11999990000"), page: 11 },
+  { ...line(663, "[59]Veículo - Marca: GM - CHEVROLET Modelo: CORSA SED. MAXX 1.8 MPFI 8V FLEXPOWER [421]Combustível: Bicombustivel"), page: 11 },
+  { ...line(651, "[59]Ano/Modelo: 2006/2006 [421]Cor: BRANCA"), page: 11 },
+  { ...line(390, "[45]D.1 Confecção de cadastro para início de relacionamento - financiada: [383]Sim Não [475]R$ 2.000,00 [526]9,84%"), page: 11 },
+  { ...line(240, "[352]Mensal % a.m. [480]Anual % a.a."), page: 11 },
+  { ...line(235, "[45]F.4 Taxa de juros mensal e anual"), page: 11 },
+  { ...line(229, "[365]3,88 % [488]57,90 %"), page: 11 },
+  { ...line(80, "[30]Ouvidoria: 0800-6467600 E-mail: ouvidoria@bancodigimais.com.br SAC: 4020.3300"), page: 11 },
+  line(600, "[60]MAIRIPORA [200]SP [300]05/09/1999 [450]caio.exemplo@gmail.com"),
+  { ...line(687, "[48]Banco Digimais S.A. [140], instituição financeira de direito privado, com sede na Rua Elvira Ferraz, 250 - 11º andar - - Bairro:"), page: 2 },
+  { ...line(676, "[48]Vila Olimpia - São Paulo - SP, inscrita no CNPJ sob nº 92.874.270/0001-40."), page: 2 },
+];
+
+describe("extrairContrato (Itaú, Santander consignado, Digimais)", () => {
+  it("Itaú: the name in pieces, the monthly rate from its column, not the daily one", () => {
+    const leitura = extrairContrato(ITAU_CDC);
+    expect(leitura.dados).toMatchObject({
+      contratante: "JOSE EXEMPLO BARBOSA", instituicao: "ITAU UNIBANCO HOLDING S.A.", contrato: "32114968",
+      taxaMensal: 2.08, taxaAnual: 28.02, garantia: "FORD RANGER CD XLS 4X2 2.3 16V G4B 2006 / 2007",
+    });
+    expect(leitura).toMatchObject({ cpf: "00000000000", cnpjInstituicao: "60872504000123", email: "jose.exemplo@live.com", endereco: "R EXEMPLO , 00515 - IRACEMAPOLIS - SP - CEP: 13497142" });
+  });
+
+  it("Santander consignado: rates written \"ao mês / ao ano\", and the client's address, not the bank's", () => {
+    const leitura = extrairContrato(SANTANDER_CONSIGNADO);
+    expect(leitura.dados).toMatchObject({
+      contrato: "783164070", contratante: "MARIA EXEMPLO DE SOUZA", instituicao: "BANCO SANTANDER (BRASIL) S.A.",
+      valorFinanciado: 22128.62, valorSolicitado: 19828.63, iof: 634.39, parcelas: 36, valorParcela: 1201,
+      taxaMensal: 3.63, taxaAnual: 53.45, primeiroVencimento: "25/01/2026", dataContrato: "27/10/2025",
+    });
+    expect(leitura).toMatchObject({ cnpjInstituicao: "90.400.888/0001-42", modalidade: "empréstimo", endereco: "HAVANA, 245, HAVAI, BELO HORIZONTE" });
+  });
+
+  it("Digimais: the standard table first, the bank's full name from the CCB, the client's e-mail and not the ombudsman's", () => {
+    const leitura = extrairContrato(DIGIMAIS);
+    expect(leitura.dados).toMatchObject({
+      contrato: "7429941", contratante: "CAIO EXEMPLO FERREIRA", instituicao: "Banco Digimais S.A.",
+      garantia: "GM - CHEVROLET CORSA SED. MAXX 1.8 MPFI 8V FLEXPOWER 2006/2006", taxaMensal: 3.88, taxaAnual: 57.9,
+    });
+    expect(leitura.dados.encargos.cadastro).toBe(2000);
+    expect(leitura).toMatchObject({ cpf: "000.000.000-00", cnpjInstituicao: "92.874.270/0001-40", email: "caio.exemplo@gmail.com", endereco: "Estrada Exemplo, 1052 - Mairipora - SP" });
+  });
+});
+
 describe("extrairContrato", () => {
   const { dados } = extrairContrato(SIM_CCB);
 
