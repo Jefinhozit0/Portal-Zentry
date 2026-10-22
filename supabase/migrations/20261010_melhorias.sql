@@ -16,12 +16,9 @@ CREATE TABLE IF NOT EXISTS public.consultores (
 CREATE UNIQUE INDEX IF NOT EXISTS consultores_nome_unico ON public.consultores (LOWER(nome));
 ALTER TABLE public.consultores ENABLE ROW LEVEL SECURITY;
 
--- A lista que aparecia no Sales HUB e todo consultor que já tem venda entram como ativos.
+-- Todo consultor que já tem venda entra como ativo; os novos são cadastrados pelo Sales HUB.
 INSERT INTO public.consultores (nome)
 SELECT nome FROM (
-  SELECT UNNEST(ARRAY['Alexandre', 'Ana G.', 'Arthur Panizza', 'Beatriz', 'Bruno Alemão', 'Fernanda', 'Gaby Inácio',
-                      'Isabella', 'Jaqueline', 'Jenifer', 'João', 'Juan', 'Kariny', 'Matheus', 'Rafaela']) AS nome
-  UNION
   SELECT DISTINCT UNNEST(consultants) AS nome FROM public.vendas
 ) nomes
 WHERE nome IS NOT NULL AND BTRIM(nome) NOT IN ('', '—')
