@@ -10,19 +10,50 @@ $logs = Join-Path $root "logs"
 New-Item -ItemType Directory -Force $logs | Out-Null
 function Log($text) { "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $text" | Out-File -Append -Encoding utf8 (Join-Path $logs "inicio.log") }
 
-# Outro vigia já rodando (a tarefa também roda a cada 5 minutos)? Então não faz nada: dois brigariam pelo portal.
+# Outro vigia desta mesma pasta já rodando (a tarefa também roda a cada 5 minutos)? Então não faz nada:
+# dois brigariam pelo portal. O vigia de outro portal no mesmo notebook (outra pasta) não conta.
 $otherWatcher = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-  Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match "iniciar-portal\.ps1" } | Select-Object -First 1
+  Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match [regex]::Escape($PSCommandPath) } | Select-Object -First 1
 if ($otherWatcher) { exit 0 }
 
-# Com o Tailscale Funnel ligado na porta 3000 (endereço fixo, mantido pelo próprio serviço do Tailscale),
-# o túnel do Cloudflare não é usado. Sem ele, volta para o túnel temporário do Cloudflare.
+# Porta, métricas do cloudflared e nó próprio do Tailscale vêm do .env. Assim este portal roda no
+# mesmo notebook que outro sem brigar pela porta, pelo túnel ou pelo endereço.
+function EnvValue($name, $default) {
+  $line = Get-Content (Join-Path $root ".env") -ErrorAction SilentlyContinue | Where-Object { $_ -match "^\s*$name\s*=" } | Select-Object -Last 1
+  if ($line) { $value = ($line -split "=", 2)[1].Trim(); if ($value) { return $value } }
+  return $default
+}
+$port = EnvValue "PORT" "3000"
+$metrics = EnvValue "CLOUDFLARED_METRICS" "127.0.0.1:20241"
+$tsHostname = EnvValue "TAILSCALE_HOSTNAME" ""
+
+# Com TAILSCALE_HOSTNAME, este portal tem o próprio nó do Tailscale (outro tailscaled, sem placa de rede,
+# com o estado em %LOCALAPPDATA%\Tailscale-<nome>), e o endereço fica https://<nome>.<tailnet>.ts.net.
+# Sem ele, usa o serviço normal do Tailscale.
 $tailscale = (Get-Command tailscale -ErrorAction SilentlyContinue).Source
 if (-not $tailscale) { $tailscale = "C:\Program Files\Tailscale\tailscale.exe" }
+$tailscaled = Join-Path (Split-Path -Parent $tailscale) "tailscaled.exe"
+$tsArgs = @()
+$tsDaemon = $null
+if ($tsHostname) {
+  $tsSocket = "\\.\pipe\tailscaled-$tsHostname"
+  $tsArgs = @("--socket=$tsSocket")
+}
+function StartTailscaleNode {
+  $existing = Get-CimInstance Win32_Process -Filter "Name='tailscaled.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match [regex]::Escape("tailscaled-$tsHostname") } | Select-Object -First 1
+  if ($existing) { return Get-Process -Id $existing.ProcessId -ErrorAction SilentlyContinue }
+  $state = Join-Path $env:LOCALAPPDATA "Tailscale-$tsHostname"
+  New-Item -ItemType Directory -Force $state | Out-Null
+  $process = Start-Process -FilePath $tailscaled -ArgumentList @("--tun=userspace-networking", "--statedir=$state", "--socket=$tsSocket", "--port=0", "--windows-mode=dev") -WindowStyle Hidden -RedirectStandardError (Join-Path $logs "tailscaled.log") -PassThru
+  Start-Sleep -Seconds 5
+  return $process
+}
 $useTailscale = $false
 if (Test-Path $tailscale) {
-  $funnel = & $tailscale funnel status 2>$null | Out-String
-  $useTailscale = $funnel -match "Funnel on" -and $funnel -match ":3000"
+  if ($tsHostname) { $tsDaemon = StartTailscaleNode }
+  $funnel = & $tailscale @tsArgs funnel status 2>$null | Out-String
+  $useTailscale = $funnel -match "Funnel on" -and $funnel -match ":$port\b"
 }
 
 $cloudflared = (Get-Command cloudflared -ErrorAction SilentlyContinue).Source
@@ -39,14 +70,14 @@ if (-not (Test-Path (Join-Path $root "dist\index.js"))) {
 }
 
 $env:NODE_ENV = "production"
-$env:PORT = "3000"
+$env:PORT = $port
 $tunnel = $null
 $portal = $null
 $tunnelDownSince = $null
 
 # Portal já rodando sem vigia (aberto à mão, ou o vigia anterior morreu)? Passa a vigiar esse mesmo,
 # em vez de abrir outro: duas cópias brigariam pela sessão do WhatsApp.
-$running = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+$running = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($running) {
   $portal = Get-Process -Id $running.OwningProcess -ErrorAction SilentlyContinue
   Log "Portal já estava rodando (processo $($running.OwningProcess)). Vigiando esse."
@@ -55,7 +86,7 @@ Log $(if ($useTailscale) { "Iniciando portal (endereço fixo pelo Tailscale Funn
 
 # O cloudflared avisa em /ready se está ligado ao Cloudflare (200) ou não (503).
 function TunnelReady {
-  try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 "http://127.0.0.1:20241/ready").StatusCode -eq 200 } catch { $false }
+  try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 "http://$metrics/ready").StatusCode -eq 200 } catch { $false }
 }
 
 # Fora da tomada o Windows põe o notebook para dormir e o portal sai do ar. A cada volta grava a
@@ -91,7 +122,12 @@ while ($true) {
   if (-not $useTailscale -and (-not $tunnel -or $tunnel.HasExited)) {
     if ($tunnel) { Log "Túnel caiu (código $($tunnel.ExitCode)). Religando." }
     # --metrics fixo: é por ele que o portal descobre o endereço atual do túnel (APP_URL=auto).
-    $tunnel = Start-Process -FilePath $cloudflared -ArgumentList @("tunnel", "--url", "http://localhost:3000", "--metrics", "127.0.0.1:20241", "--logfile", (Join-Path $logs "cloudflared.log")) -WindowStyle Hidden -PassThru
+    $tunnel = Start-Process -FilePath $cloudflared -ArgumentList @("tunnel", "--url", "http://localhost:$port", "--metrics", $metrics, "--logfile", (Join-Path $logs "cloudflared.log")) -WindowStyle Hidden -PassThru
+  }
+  # O nó próprio do Tailscale caiu? Religa: o Funnel volta sozinho, ele fica salvo no estado do nó.
+  if ($tsHostname -and $useTailscale -and (-not $tsDaemon -or $tsDaemon.HasExited)) {
+    if ($tsDaemon) { Log "Tailscale do portal caiu (código $($tsDaemon.ExitCode)). Religando." }
+    $tsDaemon = StartTailscaleNode
   }
   if (-not $portal -or $portal.HasExited) {
     if ($portal) { Log "Portal caiu (código $($portal.ExitCode)). Religando." }
