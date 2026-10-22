@@ -75,7 +75,7 @@ export default function TermosPage({ onOpenClient }: { onOpenClient: (row: Recor
     { label: "Aceitaram os termos", value: t.accepted },
     { label: "Ativaram as notificações do app", value: t.withNotifications },
   ] : [];
-  const maxWeek = Math.max(1, ...(report?.weeks ?? []).map((week) => week.accepted));
+  const maxDay = Math.max(1, ...(report?.days ?? []).map((day) => day.accepted));
   const reasons: Situation[] = ["primeiro-acesso", "link-expirado", "sem-aceite", "versao-antiga", "sem-login"];
   const countOf = (situation: Situation) => (report?.clients ?? []).filter((row) => row.situation === situation).length;
 
@@ -110,12 +110,12 @@ export default function TermosPage({ onOpenClient }: { onOpenClient: (row: Recor
       </section>
 
       <section className="panel">
-        <div className="panel-heading"><div><h3>Aceites por semana</h3><p>Últimas 8 semanas</p></div></div>
-        <div className="terms-weeks" role="img" aria-label="Aceites por semana nas últimas 8 semanas">
-          {(report?.weeks ?? []).map((week) => <div key={week.start} title={`Semana de ${formatDate(week.start)}: ${week.accepted} aceite(s)`}>
-            <b>{week.accepted || ""}</b>
-            <span style={{ height: `${(week.accepted / maxWeek) * 100}%` }} />
-            <small>{new Date(week.start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}</small>
+        <div className="panel-heading"><div><h3>Aceites por dia</h3><p>Últimos 14 dias</p></div></div>
+        <div className="terms-days" role="img" aria-label="Aceites por dia nos últimos 14 dias">
+          {(report?.days ?? []).map((day) => <div key={day.start} title={`${formatDate(day.start)}: ${day.accepted} aceite(s)`}>
+            <b>{day.accepted || ""}</b>
+            <span style={{ height: `${(day.accepted / maxDay) * 100}%` }} />
+            <small>{new Date(day.start).toLocaleDateString("pt-BR", { day: "2-digit", timeZone: "America/Sao_Paulo" })}</small>
           </div>)}
         </div>
       </section>

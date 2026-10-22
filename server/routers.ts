@@ -4,6 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { faltaEmpresa, faltaPerito } from "@shared/empresa";
 import { isEmailEnabled, sendPasswordResetCodeEmail, sendVerificationCodeEmail } from "./_core/email";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
@@ -28,7 +29,16 @@ import QRCode from "qrcode";
 import type { TrpcContext } from "./_core/context";
 import { TICKET_TOPICS, formatTicketMessage, parseTicketMessage } from "@shared/tickets";
 import { MAX_DOCUMENT_BYTES, PROCESS_STATUSES, toneForStatus } from "@shared/processo";
-import { addEvent, deleteDocument, documentDownloadUrl, listDocuments, listEvents, removeClientFiles, uploadDocument } from "./_core/processo";
+import { addEvent, deleteDocument, documentDownloadUrl, downloadDocument, listDocuments, listEvents, listLaudos, removeClientFiles, uploadDocument } from "./_core/processo";
+import { lerContrato } from "./_core/laudoContrato";
+import { buildLaudoPdf, laudoFileName } from "./_core/laudoPdf";
+import { buildProcuracaoPdf, procuracaoFileName } from "./_core/procuracaoPdf";
+import { problemasProcuracao } from "@shared/procuracao";
+import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoFileName, notificacaoFileName } from "./_core/notificacaoPdf";
+import { MODALIDADES, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
+import { buildTermoPdf, termoFileName } from "./_core/termoPdf";
+import { problemasTermo } from "@shared/termo";
+import { problemasLaudo } from "@shared/laudo";
 
 const verificationRequestTimes = new Map<string, number>();
 const verificationRequestCooldownMs = 60_000;
@@ -113,6 +123,90 @@ function isAdminUser(user: { email?: string; app_metadata?: Record<string, unkno
   if (user.app_metadata?.role === "admin") return true;
   return Boolean(user.email && ENV.adminEmails.includes(user.email.toLowerCase()));
 }
+
+const valor = z.number().min(0).max(1e9);
+/** The laudo form (LaudoDados in shared/laudo.ts). */
+const laudoInput = z.object({
+  contrato: z.string().trim().max(60),
+  contratante: z.string().trim().max(200),
+  instituicao: z.string().trim().max(200),
+  objeto: z.string().trim().max(100),
+  garantia: z.string().trim().max(200),
+  valorSolicitado: valor,
+  valorFinanciado: valor,
+  parcelas: z.number().int().min(0).max(600),
+  valorParcela: valor,
+  dataContrato: z.string().trim().max(20),
+  primeiroVencimento: z.string().trim().max(20),
+  taxaMensal: z.number().min(0).max(100),
+  taxaAnual: z.number().min(0).max(10000),
+  jurosMora: z.string().trim().max(40),
+  iof: valor,
+  encargos: z.object({ seguros: valor.nullable(), avaliacao: valor.nullable(), cadastro: valor.nullable(), registro: valor.nullable() }),
+});
+
+/** The procuração form (ProcuracaoDados in shared/procuracao.ts). */
+const procuracaoInput = z.object({
+  nome: z.string().trim().max(200),
+  cpf: z.string().trim().max(20),
+  endereco: z.string().trim().max(300),
+  cep: z.string().trim().max(12),
+  email: z.string().trim().max(200),
+  cidade: z.string().trim().max(100),
+  data: z.string().trim().max(10),
+});
+
+/** The notificação form (NotificacaoDados in shared/notificacao.ts). */
+const genero = z.enum(["M", "F"]).nullable().default(null);
+const notificacaoInput = z.object({
+  nome: z.string().trim().max(200),
+  genero,
+  cpf: z.string().trim().max(20),
+  valor: valor,
+  parcelas: z.number().int().min(0).max(600),
+  valorParcela: valor,
+  bancoNome: z.string().trim().max(200),
+  bancoCnpj: z.string().trim().max(30),
+  bancoEndereco: z.string().trim().max(400),
+  cidade: z.string().trim().max(100),
+  data: z.string().trim().max(10),
+});
+
+/** The notificação com contrato form (NotificacaoContratoDados in shared/notificacao.ts). */
+const notificacaoContratoInput = z.object({
+  nome: z.string().trim().max(200),
+  genero,
+  cpf: z.string().trim().max(20),
+  contrato: z.string().trim().max(60),
+  taxaMensal: z.number().min(0).max(100),
+  modalidade: z.enum(MODALIDADES),
+  bancoNome: z.string().trim().max(200),
+  bancoCnpj: z.string().trim().max(30),
+  bancoEndereco: z.string().trim().max(400),
+  cidade: z.string().trim().max(100),
+  data: z.string().trim().max(10),
+});
+
+/** The termo de prestação de serviços form (TermoDados in shared/termo.ts). */
+const termoInput = z.object({
+  nome: z.string().trim().max(200),
+  genero,
+  cpf: z.string().trim().max(20),
+  email: z.string().trim().max(200),
+  endereco: z.string().trim().max(400),
+  banco: z.string().trim().max(200),
+  modalidade: z.enum(MODALIDADES),
+});
+
+/** Documents that print the company refuse to come out while shared/empresa.ts has a blank field. */
+const faltandoNaEmpresa = () => {
+  const missing = faltaEmpresa();
+  return missing.length ? [`Faltam dados da empresa em shared/empresa.ts: ${missing.join(", ")}.`] : [];
+};
+const faltandoNoPerito = () => {
+  const missing = faltaPerito();
+  return missing.length ? [`Faltam dados do contador que assina o laudo em shared/empresa.ts: ${missing.join(", ")}.`] : [];
+};
 
 /** Procedures for the Zentry team: every route with data from all clients goes through here. */
 const staffProcedure = publicProcedure.use(async ({ ctx, next, type }) => {
@@ -819,6 +913,111 @@ export const appRouter = router({
         const removed = await deleteDocument(input.id, ctx.staffUser.email ?? "equipe");
         await registrarAcao(ctx.staffUser.email, "Apagou documento", removed.nome, removed.clientId);
         return { success: true } as const;
+      }),
+
+    /** Fills the laudo form from a contract PDF: one already attached to the client, or one sent now. */
+    lerContrato: staffProcedure
+      .input(z.object({
+        documentoId: z.number().int().positive().optional(),
+        conteudo: z.string().min(1).max(Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4 + 4).optional(),
+      }).refine((input) => input.documentoId !== undefined || input.conteudo !== undefined, "Envie o contrato em PDF."))
+      .mutation(async ({ input }) => {
+        const bytes = input.documentoId !== undefined ? (await downloadDocument(input.documentoId)).bytes : new Uint8Array(Buffer.from(input.conteudo!, "base64"));
+        if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new TRPCError({ code: "BAD_REQUEST", message: "Esse arquivo não é um PDF." });
+        try {
+          return await lerContrato(bytes);
+        } catch (error) {
+          console.warn("[laudo] Could not read contract:", error instanceof Error ? error.message : error);
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Não foi possível ler esse PDF. Preencha os dados à mão." });
+        }
+      }),
+
+    /** Laudos attached to clients, for the Laudos screen. */
+    laudos: staffProcedure.query(() => listLaudos()),
+
+    /** Notificação extrajudicial asking the bank for the contract, as a PDF; optionally saved among the client's documents. */
+    gerarNotificacao: staffProcedure
+      .input(z.object({ clientId: z.number().int().positive().optional(), anexar: z.boolean().default(false), dados: notificacaoInput }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = [...faltandoNaEmpresa(), ...problemasNotificacao(input.dados)];
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems.join(" ") });
+        const pdf = await buildNotificacaoPdf(input.dados);
+        const nome = notificacaoFileName(input.dados);
+        if (input.anexar && input.clientId !== undefined) {
+          const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
+          if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
+          await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Notificação extrajudicial a ${input.dados.bancoNome} pedindo o contrato`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+        }
+        await registrarAcao(ctx.staffUser.email, "Gerou notificação", `${input.dados.nome} → ${input.dados.bancoNome}`, input.clientId);
+        return { nome, conteudo: pdf.toString("base64") };
+      }),
+
+    /** Notificação com contrato (contests the interest rate), as a PDF; optionally saved among the client's documents. */
+    gerarNotificacaoContrato: staffProcedure
+      .input(z.object({ clientId: z.number().int().positive().optional(), anexar: z.boolean().default(false), dados: notificacaoContratoInput }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = [...faltandoNaEmpresa(), ...problemasNotificacaoContrato(input.dados)];
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems.join(" ") });
+        const pdf = await buildNotificacaoContratoPdf(input.dados);
+        const nome = notificacaoContratoFileName(input.dados);
+        if (input.anexar && input.clientId !== undefined) {
+          const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
+          if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
+          await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Notificação a ${input.dados.bancoNome} sobre os juros do contrato ${input.dados.contrato}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+        }
+        await registrarAcao(ctx.staffUser.email, "Gerou notificação com contrato", `${input.dados.nome} → ${input.dados.bancoNome}, contrato ${input.dados.contrato}`, input.clientId);
+        return { nome, conteudo: pdf.toString("base64") };
+      }),
+
+    /** Termo de conhecimento de prestação de serviços, as a PDF; optionally saved among the client's documents. */
+    gerarTermo: staffProcedure
+      .input(z.object({ clientId: z.number().int().positive().optional(), anexar: z.boolean().default(false), dados: termoInput }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = [...faltandoNaEmpresa(), ...problemasTermo(input.dados)];
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems.join(" ") });
+        const pdf = await buildTermoPdf(input.dados);
+        const nome = termoFileName(input.dados);
+        if (input.anexar && input.clientId !== undefined) {
+          const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
+          if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
+          await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Termo de conhecimento: notificação enviada a ${input.dados.banco}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+        }
+        await registrarAcao(ctx.staffUser.email, "Gerou termo de prestação de serviços", `${input.dados.nome} → ${input.dados.banco}`, input.clientId);
+        return { nome, conteudo: pdf.toString("base64") };
+      }),
+
+    /** Procuração extrajudicial (consumidor.gov.br) as a PDF; optionally saved among the client's documents. */
+    gerarProcuracao: staffProcedure
+      .input(z.object({ clientId: z.number().int().positive().optional(), anexar: z.boolean().default(false), dados: procuracaoInput }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = [...faltandoNaEmpresa(), ...problemasProcuracao(input.dados)];
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems.join(" ") });
+        const pdf = await buildProcuracaoPdf(input.dados);
+        const nome = procuracaoFileName(input.dados);
+        if (input.anexar && input.clientId !== undefined) {
+          const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
+          if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
+          await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: "Procuração extrajudicial (consumidor.gov.br)", bytes: pdf }, ctx.staffUser.email ?? "equipe");
+        }
+        await registrarAcao(ctx.staffUser.email, "Gerou procuração", input.dados.nome, input.clientId);
+        return { nome, conteudo: pdf.toString("base64") };
+      }),
+
+    /** The parecer técnico as a PDF; optionally saved among the client's documents. */
+    gerarLaudo: staffProcedure
+      .input(z.object({ clientId: z.number().int().positive().optional(), anexar: z.boolean().default(false), dados: laudoInput }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = [...faltandoNoPerito(), ...problemasLaudo(input.dados)];
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems.join(" ") });
+        const pdf = await buildLaudoPdf(input.dados);
+        const nome = laudoFileName(input.dados);
+        if (input.anexar && input.clientId !== undefined) {
+          const { data: cliente } = await supabase.from("clientes").select("id, name").eq("id", input.clientId).maybeSingle();
+          if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
+          await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Parecer técnico do contrato ${input.dados.contrato}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+        }
+        await registrarAcao(ctx.staffUser.email, "Gerou laudo", `${input.dados.contratante}: contrato ${input.dados.contrato}`, input.clientId);
+        return { nome, conteudo: pdf.toString("base64") };
       }),
 
     /** Clears a client's whole conversation (messages, tickets and the assistant's lines). The client stays registered. */

@@ -6,6 +6,7 @@ const SalesHubPage = lazy(() => import("./SalesHub"));
 const AdminPage = lazy(() => import("./Admin"));
 const TermosPage = lazy(() => import("./Termos"));
 const ChargebacksPage = lazy(() => import("./Chargebacks"));
+const LaudosPage = lazy(() => import("./Laudos"));
 import { useQueryClient } from "@tanstack/react-query";
 import { parseTicketMessage } from "@shared/tickets";
 import { INITIAL_STATUS } from "@shared/processo";
@@ -48,6 +49,7 @@ import {
   Eye,
   EyeOff,
   FileCheck2,
+  FileSpreadsheet,
   FileText,
   LayoutDashboard,
   LockKeyhole,
@@ -69,7 +71,7 @@ import {
   X,
 } from "lucide-react";
 
-type View = "dashboard" | "clientes" | "chargebacks" | "atendimento" | "termos" | "saleshub" | "client-detail" | "admin";
+type View = "dashboard" | "clientes" | "chargebacks" | "atendimento" | "termos" | "laudos" | "saleshub" | "client-detail" | "admin";
 type Client = { id?: number; name: string; cpf: string; type: string; status: string; updated: string; tone: "green" | "yellow" | "red"; email?: string; phone?: string; services?: string[]; tags?: string[] };
 
 const clientServices = ["Financiamento Imobiliário", "Financiamento Veicular", "Empréstimo Pessoal", "Empréstimo Consignado", "Cartão de Crédito", "Outros"];
@@ -328,6 +330,7 @@ function Sidebar({ view, setView, collapsed, setCollapsed, onLogout, userName, i
     { id: "chargebacks", label: "Chargebacks", icon: CreditCard },
     { id: "atendimento", label: "Atendimento", icon: MessageCircle },
     { id: "termos", label: "Termos", icon: FileCheck2 },
+    { id: "laudos", label: "Gerar documentos", icon: FileSpreadsheet },
     { id: "saleshub", label: "Sales HUB", icon: FileText },
     ...(isAdmin ? [{ id: "admin" as View, label: "Administração", icon: ShieldCheck }] : []),
   ];
@@ -388,7 +391,7 @@ function WhatsAppIndicator({ onClick }: { onClick: () => void }) {
 
 function Topbar({ view, onMenu, onSearch, onNotifications, onWhatsApp, userName }: { view: View; onMenu: () => void; onSearch: () => void; onNotifications: () => void; onWhatsApp: () => void; userName: string }) {
   const hasAwaiting = useAwaitingConversations().length > 0;
-  const titles: Record<View, [string, string]> = { dashboard: ["Dashboard", "Visão geral do seu portal"], clientes: ["Clientes", "Acompanhe pessoas e processos"], "client-detail": ["Detalhes do Cliente", "Informações completas do cliente"], chargebacks: ["Chargebacks", "Solicitações de devolução em andamento"], atendimento: ["Atendimento", "Converse com seus clientes"], termos: ["Termos", "Quem já aceitou os termos do portal e quem está pendente"], saleshub: ["Sales HUB", "Centro de inteligência comercial e jurídico"], admin: ["Administração", "WhatsApp, backup e registro de ações"] };
+  const titles: Record<View, [string, string]> = { dashboard: ["Dashboard", "Visão geral do seu portal"], clientes: ["Clientes", "Acompanhe pessoas e processos"], "client-detail": ["Detalhes do Cliente", "Informações completas do cliente"], chargebacks: ["Chargebacks", "Solicitações de devolução em andamento"], atendimento: ["Atendimento", "Converse com seus clientes"], termos: ["Termos", "Quem já aceitou os termos do portal e quem está pendente"], laudos: ["Gerar documentos", "Laudos, procurações, notificações e termos prontos em PDF"], saleshub: ["Sales HUB", "Centro de inteligência comercial e jurídico"], admin: ["Administração", "WhatsApp, backup e registro de ações"] };
   const initials = userName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   return <header className="topbar"><button className="mobile-menu-button icon-button" onClick={onMenu} aria-label="Abrir menu"><Menu size={21} /></button><div><p className="breadcrumb">Zentry Soluções <ChevronRight size={14} /> {titles[view][0]}</p><h1>{titles[view][0]}</h1><span>{titles[view][1]}</span></div><div className="topbar-actions"><button className="icon-button" aria-label="Buscar clientes" title="Buscar clientes" onClick={onSearch}><Search size={19} /></button><button className="icon-button notification-button" aria-label="Abrir atendimentos" title="Abrir atendimentos" onClick={onNotifications}><Bell size={19} />{hasAwaiting && <span />}</button><WhatsAppIndicator onClick={onWhatsApp} /><ThemeToggle /><span className="topbar-separator" /><div className="topbar-user"><span className="avatar avatar-gold">{initials}</span><div><strong>{userName}</strong><small>Online agora</small></div></div></div></header>;
 }
@@ -961,6 +964,7 @@ export default function Home() {
         {view === "chargebacks" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><ChargebacksPage listFilter={chargebackFilter} onClearFilter={() => setListFilter(null)} isAdmin={isAdmin} draft={chargebackDraft} onDraftUsed={clearChargebackDraft} onOpenClient={openClientRow} /></Suspense>}
         {view === "atendimento" && <AtendimentoPage isAdmin={isAdmin} />}
         {view === "termos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><TermosPage onOpenClient={openClientRow} /></Suspense>}
+        {view === "laudos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><LaudosPage onOpenClient={openClientRow} /></Suspense>}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><AdminPage /></Suspense>}
         {view === "saleshub" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><SalesHubPage userName={userName} isAdmin={isAdmin} onChargeback={(draft) => { setChargebackDraft(draft); navigate("chargebacks"); }} /></Suspense>}
         <footer className="app-footer">© 2026 Zentry Soluções <span>·</span> Todos os direitos reservados.</footer>
