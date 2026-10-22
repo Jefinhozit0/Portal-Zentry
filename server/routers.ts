@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { sendPasswordResetCodeEmail, sendVerificationCodeEmail } from "./_core/email";
+import { isEmailEnabled, sendPasswordResetCodeEmail, sendVerificationCodeEmail } from "./_core/email";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { checkCode, codeErrorMessage, createVerificationCode, discardVerificationCode } from "./_core/verificationCodes";
@@ -265,6 +265,8 @@ export const appRouter = router({
   /** Public: whether clients should see the maintenance screen. */
   status: router({
     manutencao: publicProcedure.query(async () => ({ manutencao: await isUnderMaintenance() })),
+    /** Whether e-mail is on; off hides "Criar login" and "Esqueci minha senha", which need an e-mailed code. */
+    email: publicProcedure.query(() => ({ ativo: isEmailEnabled() })),
   }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

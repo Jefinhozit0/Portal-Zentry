@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import type { User } from "@supabase/supabase-js";
 import { OLD_SYSTEM_TAG } from "@shared/processo";
-import { sendClientAccessEmail } from "./email";
+import { isEmailEnabled, sendClientAccessEmail } from "./email";
 import { supabase } from "./supabase";
 import { isWhatsAppEnabled, normalizeBrazilPhone, sendAccessMessage } from "./whatsapp";
 
@@ -145,12 +145,14 @@ export async function provisionClientAccess(
   const migrated = isFromOldSystem(cliente);
 
   const [emailResult, whatsappResult] = await Promise.all([
-    sendClientAccessEmail(email, { name: cliente.name, link, reminder: options.reminder, migrated })
-      .then((): ChannelResult => ({ sent: true }))
-      .catch((error): ChannelResult => {
-        console.error("[ClientAccess] Access e-mail failed:", error);
-        return { sent: false, reason: error instanceof Error ? error.message : "Não foi possível enviar o e-mail." };
-      }),
+    !isEmailEnabled()
+      ? Promise.resolve<ChannelResult>({ sent: false, reason: "Envio por e-mail desligado." })
+      : sendClientAccessEmail(email, { name: cliente.name, link, reminder: options.reminder, migrated })
+        .then((): ChannelResult => ({ sent: true }))
+        .catch((error): ChannelResult => {
+          console.error("[ClientAccess] Access e-mail failed:", error);
+          return { sent: false, reason: error instanceof Error ? error.message : "Não foi possível enviar o e-mail." };
+        }),
     (async (): Promise<ChannelResult> => {
       if (!isWhatsAppEnabled()) return { sent: false, reason: "WhatsApp corporativo ainda não configurado." };
       const phone = normalizeBrazilPhone(cliente.phone);

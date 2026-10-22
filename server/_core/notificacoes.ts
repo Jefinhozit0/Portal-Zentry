@@ -1,5 +1,5 @@
 import { parseTicketMessage } from "@shared/tickets";
-import { sendNoticeEmail } from "./email";
+import { isEmailEnabled, sendNoticeEmail } from "./email";
 import { ENV } from "./env";
 import { getPublicUrl } from "./publicUrl";
 import { sendPushToClient, sendPushToStaff, type PushMessage } from "./push";
@@ -84,7 +84,7 @@ export function notifyClient(clientId: number, kind: ClientNoticeKind, detail?: 
       phone && canSendFreeText()
         ? sendFreeText(phone, texts.whatsapp).catch((error) => console.warn(`[notificacoes] WhatsApp to client #${clientId} failed:`, error instanceof Error ? error.message : error))
         : undefined,
-      cliente.email
+      cliente.email && isEmailEnabled()
         ? sendNoticeEmail(String(cliente.email), { ...texts.email, button: { label: "Abrir o portal", url } }).catch((error) => console.warn(`[notificacoes] E-mail to client #${clientId} failed:`, error instanceof Error ? error.message : error))
         : undefined,
     ]);
@@ -95,7 +95,7 @@ export function notifyClient(clientId: number, kind: ClientNoticeKind, detail?: 
 export function notifyTeam(subject: string, paragraphs: string[], whatsappText: string) {
   void (async () => {
     const url = await getPublicUrl();
-    const recipients = ENV.teamNotifyEmails.length > 0 ? ENV.teamNotifyEmails : ENV.staffEmails;
+    const recipients = !isEmailEnabled() ? [] : ENV.teamNotifyEmails.length > 0 ? ENV.teamNotifyEmails : ENV.staffEmails;
     await Promise.all([
       ...recipients.map((to) =>
         sendNoticeEmail(to, { subject, title: subject, paragraphs, button: { label: "Abrir o portal", url } })
@@ -137,7 +137,7 @@ export function notifyTeamNewMessage(clientId: number, clientName: string, store
     const preview = body.length > 300 ? `${body.slice(0, 300)}…` : body;
     const url = await getPublicUrl();
     const subject = ticket ? `Novo ticket de ${clientName}: ${ticket.topic}` : `Nova mensagem de ${clientName} no portal`;
-    const recipients = ENV.teamNotifyEmails.length > 0 ? ENV.teamNotifyEmails : ENV.staffEmails;
+    const recipients = !isEmailEnabled() ? [] : ENV.teamNotifyEmails.length > 0 ? ENV.teamNotifyEmails : ENV.staffEmails;
     const whatsappText = `🔔 *${subject}*\n\n"${preview}"\n\nResponder no portal: ${url}`;
 
     await Promise.all([

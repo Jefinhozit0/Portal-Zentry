@@ -6,6 +6,11 @@ export type EmailProviderConfig = Pick<typeof ENV, "resendApiKey" | "emailFrom">
 
 type EmailMessage = { to: string; subject: string; text: string; html: string };
 
+/** False with EMAIL_PROVIDER=off: nothing is sent and the callers skip e-mail. */
+export function isEmailEnabled() {
+  return ENV.emailEnabled;
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 }
@@ -129,6 +134,7 @@ export async function sendNoticeEmail(
 }
 
 async function sendEmail({ to, subject, text, html }: EmailMessage, config: EmailProviderConfig): Promise<void> {
+  if (config === ENV && !isEmailEnabled()) throw new Error("O envio de e-mail está desligado.");
 
   if (config.gmailUser || config.gmailAppPassword) {
     if (!config.gmailUser || !config.gmailAppPassword) {

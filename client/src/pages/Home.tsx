@@ -106,6 +106,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const criarConta = trpc.account.criarConta.useMutation();
   const requestPasswordReset = trpc.account.solicitarRedefinicaoSenha.useMutation();
   const resetPassword = trpc.account.redefinirSenha.useMutation();
+  // Without e-mail no code can go out, so the two screens that need one are hidden.
+  const emailOn = trpc.status.email.useQuery(undefined, { staleTime: Infinity }).data?.ativo ?? true;
   const [mode, setMode] = useState<"login" | "register" | "verify" | "verified" | "forgot" | "reset">("login");
   const [resetEmail, setResetEmail] = useState("");
   const [resetCode, setResetCode] = useState("");
@@ -264,9 +266,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               {message && <p className="form-message">{message}</p>}
               <button className="primary-button login-button" type="submit">Entrar <ChevronRight size={18} /></button>
             </form>
-            <button className="link-button" type="button" onClick={() => { setResetEmail(loginEmail); setMode("forgot"); setMessage(""); setNotice(""); }}>Esqueci minha senha</button>
-            <div className="first-access"><strong>Primeiro acesso?</strong><span>Toque no link que a Zentry Soluções enviou por e-mail ou WhatsApp para criar sua senha. Se ele venceu, peça um novo à equipe.</span></div>
-            <button className="link-button" type="button" onClick={() => { setMode("register"); setMessage(""); }}>Criar login</button>
+            {emailOn && <button className="link-button" type="button" onClick={() => { setResetEmail(loginEmail); setMode("forgot"); setMessage(""); setNotice(""); }}>Esqueci minha senha</button>}
+            <div className="first-access"><strong>Primeiro acesso?</strong><span>{emailOn ? "Toque no link que a Zentry Soluções enviou por e-mail ou WhatsApp para criar sua senha. Se ele venceu, peça um novo à equipe." : "Toque no link que a Zentry Soluções enviou por WhatsApp para criar sua senha. Se ele venceu ou você esqueceu a senha, peça um novo à equipe."}</span></div>
+            {emailOn && <button className="link-button" type="button" onClick={() => { setMode("register"); setMessage(""); }}>Criar login</button>}
           </> : mode === "register" ? <>
             <form onSubmit={requestLogin} className="login-form">
               <label>E-mail para verificação<input required type="email" aria-label="E-mail para verificação" placeholder="voce@email.com" value={registerEmail} onChange={(event) => setRegisterEmail(event.target.value)} /></label>
