@@ -1,6 +1,6 @@
 ﻿# Liga o portal e o túnel do Cloudflare e mantém os dois rodando: se um cair, volta sozinho em até 15 s.
 # Roda escondido quando o Windows inicia (veja instalar-inicio-automatico.ps1), mas também pode ser
-# usado à mão:  powershell -ExecutionPolicy Bypass -File scripts\iniciar-portal.ps1
+# usado à mão:  powershell -ExecutionPolicy Bypass -File scripts\iniciar-zentry.ps1
 # Os registros ficam na pasta logs\ do projeto.
 
 $ErrorActionPreference = "Continue"

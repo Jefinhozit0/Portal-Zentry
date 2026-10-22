@@ -4,10 +4,10 @@
 # Para desfazer: scripts\remover-inicio-automatico.ps1
 
 $ErrorActionPreference = "Stop"
-$script = Join-Path $PSScriptRoot "iniciar-portal.ps1"
+$script = Join-Path $PSScriptRoot "iniciar-zentry.ps1"
 $state = Join-Path $PSScriptRoot "energia-anterior.json"
 
-# 1. Tarefa agendada: roda o iniciar-portal.ps1 escondido a cada logon deste usuário e, de novo, a
+# 1. Tarefa agendada: roda o iniciar-zentry.ps1 escondido a cada logon deste usuário e, de novo, a
 #    cada 5 minutos. Enquanto o vigia estiver vivo, o Windows ignora as novas execuções; se ele morrer
 #    (já aconteceu depois de uma suspensão), outro assume o portal em até 5 minutos.
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`""

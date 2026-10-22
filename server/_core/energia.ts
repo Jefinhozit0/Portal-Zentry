@@ -3,7 +3,7 @@ import path from "node:path";
 import { notifyTeam } from "./notificacoes";
 
 /**
- * Whether the notebook that runs the portal is plugged in. scripts/iniciar-portal.ps1 writes
+ * Whether the notebook that runs the portal is plugged in. scripts/iniciar-zentry.ps1 writes
  * logs/energia.json every 15 seconds; on battery Windows soon puts the notebook to sleep and the
  * portal goes offline, so the team is warned in the portal and by e-mail/WhatsApp.
  */
