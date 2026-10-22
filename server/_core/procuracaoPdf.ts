@@ -1,6 +1,6 @@
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import { EMPRESA } from "@shared/empresa";
-import { PODERES, type ProcuracaoDados, formatCEP, formatCPF, localEData } from "@shared/procuracao";
+import { PODERES, type ProcuracaoDados, formatCEP, formatCPF, localEData, nomeProprio } from "@shared/procuracao";
 import { renderPdf, safePdfName } from "./pdf";
 
 /** Procuração extrajudicial, laid out like the team's Word model: gray title band, two boxes, powers, place/date and signature line. */
@@ -29,7 +29,7 @@ export function procuracaoDefinition(dados: ProcuracaoDados): TDocumentDefinitio
   return {
     pageSize: "A4",
     pageMargins: [100, 30, 78, 40],
-    info: { title: `Procuração extrajudicial – ${dados.nome}`, author: EMPRESA.nome },
+    info: { title: `Procuração extrajudicial – ${nomeProprio(dados.nome)}`, author: EMPRESA.nome },
     defaultStyle: { font: "Roboto", color: TEXT },
     background: () => ({
       canvas: [
@@ -40,7 +40,7 @@ export function procuracaoDefinition(dados: ProcuracaoDados): TDocumentDefinitio
     content: [
       { text: "PROCURAÇÃO EXTRAJUDICIAL", color: "#ffffff", bold: true, fontSize: 24, alignment: "center", margin: [-60, -14, -30, 46] },
       box("OUTORGANTE", [
-        ["Nome", dados.nome.trim().toUpperCase()],
+        ["Nome", nomeProprio(dados.nome)],
         ["CPF", formatCPF(dados.cpf)],
         ["Endereço", dados.endereco.trim()],
         ["CEP", formatCEP(dados.cep)],
@@ -71,4 +71,4 @@ export function procuracaoDefinition(dados: ProcuracaoDados): TDocumentDefinitio
 export const buildProcuracaoPdf = (dados: ProcuracaoDados) => renderPdf(procuracaoDefinition(dados));
 
 /** "Procuração extrajudicial - MARIA DA SILVA.pdf" */
-export const procuracaoFileName = (dados: ProcuracaoDados) => safePdfName(`Procuração extrajudicial - ${dados.nome.trim().toUpperCase()}`);
+export const procuracaoFileName = (dados: ProcuracaoDados) => safePdfName(`Procuração extrajudicial - ${nomeProprio(dados.nome)}`);

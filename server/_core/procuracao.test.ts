@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyProcuracao, formatCEP, formatCPF, hojeISO, localEData, problemasProcuracao } from "@shared/procuracao";
+import { emptyProcuracao, formatCEP, formatCPF, hojeISO, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
 import { buildProcuracaoPdf, procuracaoFileName } from "./procuracaoPdf";
 
 const dados = { nome: "Maria da Silva", cpf: "00000000000", endereco: "Rua das Flores, 123", cep: "01234567", email: "maria@exemplo.com", cidade: "São Paulo", data: "2026-10-22" };
@@ -22,6 +22,13 @@ describe("procuração extrajudicial", () => {
     expect(problemasProcuracao({ ...dados, cidade: "3550308" })).toEqual(['Escreva a cidade por extenso: "3550308" parece um código, não o nome da cidade.']);
   });
 
+  it("writes the client's name with only the first letter of each name in capitals", () => {
+    expect(nomeProprio("FLAVIO FERREIRA")).toBe("Flavio Ferreira");
+    expect(nomeProprio("  maria DAS dores  dos santos e SILVA ")).toBe("Maria das Dores dos Santos e Silva");
+    expect(nomeProprio("JOSÉ D'ÁVILA ANA-CLARA ÉRICA")).toBe("José D'Ávila Ana-Clara Érica");
+    expect(nomeProprio("DA SILVA")).toBe("Da Silva");
+  });
+
   it("starts with today's date in São Paulo", () => {
     expect(hojeISO(new Date("2026-10-23T01:30:00Z"))).toBe("2026-10-22");
     expect(emptyProcuracao().data).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -31,6 +38,6 @@ describe("procuração extrajudicial", () => {
     const pdf = await buildProcuracaoPdf(dados);
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
-    expect(procuracaoFileName(dados)).toBe("Procuração extrajudicial - MARIA DA SILVA.pdf");
+    expect(procuracaoFileName(dados)).toBe("Procuração extrajudicial - Maria da Silva.pdf");
   });
 });

@@ -39,6 +39,18 @@ export function localEData(dados: Pick<ProcuracaoDados, "cidade" | "data">) {
   return `${dados.cidade.trim()}, ${day} de ${MESES[month - 1]} de ${year}.`;
 }
 
+const PARTICULAS = new Set(["da", "das", "de", "di", "do", "dos", "du", "e"]);
+
+/** "FLAVIO FERREIRA DA SILVA" → "Flavio Ferreira da Silva": each name capitalized, the particles in lowercase. */
+export function nomeProprio(nome: string) {
+  return nome.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean)
+    .map((word, index) => (index > 0 && PARTICULAS.has(word)
+      ? word
+      // "d'ávila", "maria-clara": each part after an apostrophe or hyphen is capitalized too.
+      : word.replace(/(^|['’-])([a-zà-ÿ])/g, (_, before: string, letter: string) => before + letter.toLocaleUpperCase("pt-BR"))))
+    .join(" ");
+}
+
 /** "00000000000" → "000.000.000-00"; anything else stays as typed. */
 export const formatCPF = (cpf: string) => {
   const digits = cpf.replace(/\D/g, "");
