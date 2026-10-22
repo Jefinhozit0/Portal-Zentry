@@ -1,6 +1,6 @@
 import { Home } from "lucide-react";
 import { useLocation } from "wouter";
-import { N1Logo } from "@/components/N1Logo";
+import { ZentryLogo } from "@/components/ZentryLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function NotFound() {
@@ -14,7 +14,7 @@ export default function NotFound() {
     <main className="client-portal-center">
       <ThemeToggle className="login-theme-toggle" />
       <div className="login-panel-inner">
-        <N1Logo size="md" />
+        <ZentryLogo size="md" />
 
         <span className="not-found-code" aria-hidden="true">404</span>
 

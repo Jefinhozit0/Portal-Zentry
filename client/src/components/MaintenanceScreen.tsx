@@ -1,6 +1,6 @@
 import { Wrench } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { N1Logo } from "./N1Logo";
+import { ZentryLogo } from "./ZentryLogo";
 
 const CHECK_EVERY_MS = 20_000;
 
@@ -24,10 +24,10 @@ export function MaintenanceScreen({ onRetry, checking }: { onRetry: () => void; 
   return (
     <main className="client-portal-center maintenance-screen">
       <div className="login-panel-inner">
-        <N1Logo size="md" />
+        <ZentryLogo size="md" />
         <span className="maintenance-icon" aria-hidden="true"><Wrench size={26} /></span>
         <h2>Estamos em manutenção</h2>
-        <p className="login-subtitle">O portal da N1 Soluções está passando por uma manutenção rápida. Seus dados e o andamento do seu processo estão seguros.</p>
+        <p className="login-subtitle">O portal da Zentry Soluções está passando por uma manutenção rápida. Seus dados e o andamento do seu processo estão seguros.</p>
         <p className="login-subtitle">Esta página volta sozinha assim que tudo estiver pronto.</p>
         <button type="button" className="primary-button" disabled={checking} onClick={onRetry}>{checking ? "Verificando..." : "Tentar agora"}</button>
         <small className="maintenance-note">Verificando de novo a cada {CHECK_EVERY_MS / 1000} segundos.</small>

@@ -1,11 +1,11 @@
-// Service worker of the N1 portal. When the server cannot be reached (the notebook
+// Service worker of the Zentry portal. When the server cannot be reached (the notebook
 // that runs it is off or asleep), show the "em manutenção" page instead of the browser's error.
 // It also shows the app notifications (end of the file).
 // It never caches the portal itself, so a new deploy is always picked up.
 
-const CACHE = "n1-manutencao-v1";
+const CACHE = "zentry-manutencao-v1";
 const OFFLINE_PAGE = "/manutencao.html";
-const LOGO = "/n1-logo.png";
+const LOGO = "/zentry-logo.png";
 // Funnel may hold the connection open for a long time while the notebook sleeps.
 const TIMEOUT_MS = 10000;
 
@@ -59,13 +59,13 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   let message = {};
   try { message = event.data ? event.data.json() : {}; } catch { message = { body: event.data ? event.data.text() : "" }; }
-  event.waitUntil(self.registration.showNotification(message.title || "N1 Soluções", {
+  event.waitUntil(self.registration.showNotification(message.title || "Zentry Soluções", {
     body: message.body || "Há uma novidade no seu processo.",
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
     lang: "pt-BR",
     // Same kind replaces the previous notice instead of piling up.
-    tag: message.tag || "n1",
+    tag: message.tag || "zentry",
     renotify: true,
     data: { url: message.url || "/" },
   }));

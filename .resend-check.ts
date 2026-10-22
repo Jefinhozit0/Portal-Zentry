@@ -4,7 +4,7 @@ import { sendVerificationCodeEmail } from "./server/_core/email";
 
 async function run() {
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
-  await sendVerificationCodeEmail("jefinhozit00@gmail.com", code);
+  await sendVerificationCodeEmail("zentrysolucoes@gmail.com", code);
   console.log("EMAIL_TEST_SENT");
 }
 

@@ -114,7 +114,7 @@ function isAdminUser(user: { email?: string; app_metadata?: Record<string, unkno
   return Boolean(user.email && ENV.adminEmails.includes(user.email.toLowerCase()));
 }
 
-/** Procedures for the N1 team: every route with data from all clients goes through here. */
+/** Procedures for the Zentry team: every route with data from all clients goes through here. */
 const staffProcedure = publicProcedure.use(async ({ ctx, next, type }) => {
   const user = await getSessionUser(ctx, type === "mutation");
   if (!user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Faça login para continuar." });
@@ -129,7 +129,7 @@ const staffProcedure = publicProcedure.use(async ({ ctx, next, type }) => {
 /** Only administrators: deleting clients, conversations, documents and sales, and the action log. */
 const adminOnlyProcedure = staffProcedure.use(({ ctx, next }) => {
   if (!isAdminUser(ctx.staffUser)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Só um administrador pode fazer isso. Peça a um administrador da N1." });
+    throw new TRPCError({ code: "FORBIDDEN", message: "Só um administrador pode fazer isso. Peça a um administrador da Zentry." });
   }
   return next();
 });
@@ -150,7 +150,7 @@ const clientProcedure = publicProcedure.use(async ({ ctx, next, type }) => {
     if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível abrir o portal agora. Tente novamente." });
     if (!cliente) {
       clientCheckedAt.delete(clienteId);
-      throw new TRPCError({ code: "FORBIDDEN", message: "Este acesso foi encerrado. Fale com a equipe da N1." });
+      throw new TRPCError({ code: "FORBIDDEN", message: "Este acesso foi encerrado. Fale com a equipe da Zentry." });
     }
     clientCheckedAt.set(clienteId, Date.now());
   }
@@ -336,7 +336,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível criar a conta agora. Tente novamente." });
         });
         if (existing && getClienteId(existing) !== null) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Este e-mail é de um cliente da N1. Entre com a senha criada no primeiro acesso ou use \"Esqueci minha senha\"." });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este e-mail é de um cliente da Zentry. Entre com a senha criada no primeiro acesso ou use \"Esqueci minha senha\"." });
         }
 
         if (!existing) {
@@ -371,7 +371,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const user = await findFirstAccessUser(input.u, input.t);
         if (!user?.email) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Este link expirou ou já foi usado. Peça um novo link à equipe da N1." });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este link expirou ou já foi usado. Peça um novo link à equipe da Zentry." });
         }
         try {
           await completeFirstAccess(user, input.password);

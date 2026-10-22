@@ -50,7 +50,7 @@ function withPayment(form: SaleForm, changes: Partial<SaleForm>): SaleForm {
   return { ...next, net: net.toFixed(2).replace(".", ",") };
 }
 
-/** How many of the latest sales the Comercial, Jurídico and N1 Control tabs show; the Vendas tab has all of them. */
+/** How many of the latest sales the Comercial, Jurídico and Zentry Control tabs show; the Vendas tab has all of them. */
 const RECENT_SALES = 10;
 
 export default function SalesHubPage({ isAdmin, onChargeback }: { userName: string; isAdmin: boolean; onChargeback: (draft: ChargebackDraft) => void }) {
@@ -207,7 +207,7 @@ export default function SalesHubPage({ isAdmin, onChargeback }: { userName: stri
     const cell = (value: string) => `<td>${escapeHtml(value)}</td>`;
     const rows = filtered.map((sale) => `<tr>${[sale.date, SECTOR_LABEL[sectorOf(sale)], sale.client, sale.consultants.join(", "), sale.product, sale.status, hubMoney(sale.gross), hubMoney(sale.net)].map(cell).join("")}</tr>`).join("");
     const rankingRows = rankingItems.map((item, index) => `<tr>${[String(index + 1), item.name, String(item.count), hubMoney(item.gross), hubMoney(item.net)].map(cell).join("")}</tr>`).join("");
-    const title = section === "control" ? "N1 Control" : section === "vendas" ? "Vendas" : SECTOR_LABEL[section];
+    const title = section === "control" ? "Zentry Control" : section === "vendas" ? "Vendas" : SECTOR_LABEL[section];
     printWindow.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Sales HUB — ${escapeHtml(title)}</title><style>body{font:12px Arial;color:#202020;margin:34px}h1{color:#8a6016;margin-bottom:4px}h2{margin-top:28px;border-bottom:2px solid #d5a63d;padding-bottom:7px}p{color:#555}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:7px;text-align:left}th{background:#f5e7c2}tr:nth-child(even){background:#fafafa}.meta{display:flex;gap:24px;margin:18px 0;font-weight:bold}@media print{body{margin:15mm}}</style></head><body><h1>Sales HUB · ${escapeHtml(title)}</h1><p>Relatório de vendas e ranking de consultores</p><div class="meta"><span>Período: ${escapeHtml(periodText)}</span><span>Vendas: ${current.count}</span><span>Bruto: ${hubMoney(current.gross)}</span><span>Líquido: ${hubMoney(current.net)}</span></div><h2>Vendas</h2><table><thead><tr><th>Data</th><th>Setor</th><th>Cliente</th><th>Consultor(es)</th><th>Produto</th><th>Status</th><th>Bruto</th><th>Líquido</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Nenhuma venda encontrada.</td></tr>'}</tbody></table><h2>Ranking de consultores</h2><table><thead><tr><th>Posição</th><th>Consultor</th><th>Vendas</th><th>Bruto</th><th>Líquido</th></tr></thead><tbody>${rankingRows || '<tr><td colspan="5">Nenhuma venda com consultor.</td></tr>'}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     printWindow.document.close();
   }
@@ -230,7 +230,7 @@ export default function SalesHubPage({ isAdmin, onChargeback }: { userName: stri
     </div>
   );
 
-  /** Period, consultant and search, with the actions on the same bar. N1 Control only uses the period. */
+  /** Period, consultant and search, with the actions on the same bar. Zentry Control only uses the period. */
   const toolbar = (withFilters: boolean) => (
     <section className={`hub-toolbar ${withFilters ? "" : "hub-toolbar-compact"}`}>
       <div className="hub-toolbar-fields hub-filter-row">
@@ -263,7 +263,7 @@ export default function SalesHubPage({ isAdmin, onChargeback }: { userName: stri
       <button type="button" role="tab" aria-selected={section === "comercial"} className={section === "comercial" ? "active" : ""} onClick={() => openSection("comercial")}><Briefcase size={16} /> Comercial</button>
       <button type="button" role="tab" aria-selected={section === "juridico"} className={section === "juridico" ? "active" : ""} onClick={() => openSection("juridico")}><Scale size={16} /> Jurídico</button>
       <button type="button" role="tab" aria-selected={section === "vendas"} className={section === "vendas" ? "active" : ""} onClick={() => openSection("vendas")}><Table2 size={16} /> Vendas</button>
-      <button type="button" role="tab" aria-selected={section === "control"} className={section === "control" ? "active" : ""} onClick={() => openSection("control")}><LayoutDashboard size={16} /> N1 Control</button>
+      <button type="button" role="tab" aria-selected={section === "control"} className={section === "control" ? "active" : ""} onClick={() => openSection("control")}><LayoutDashboard size={16} /> Zentry Control</button>
     </div>
   );
 

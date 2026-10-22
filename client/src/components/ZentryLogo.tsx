@@ -1,12 +1,12 @@
 import React from "react";
 
-interface N1LogoProps {
+interface ZentryLogoProps {
   compact?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
-export const N1Logo: React.FC<N1LogoProps> = ({
+export const ZentryLogo: React.FC<ZentryLogoProps> = ({
   compact = false,
   size = "md",
   className = "",
@@ -17,12 +17,12 @@ export const N1Logo: React.FC<N1LogoProps> = ({
 
   return (
     <div
-      className={`n1-brand-logo ${compact ? "is-compact" : ""} ${className}`}
-      title="N1 Soluções"
+      className={`zentry-brand-logo ${compact ? "is-compact" : ""} ${className}`}
+      title="Zentry Soluções"
     >
       <img
-        src="/n1-logo.png"
-        alt="N1 Soluções"
+        src="/zentry-logo.png"
+        alt="Zentry Soluções"
         style={{
           height: `${height}px`,
           width: "auto",
@@ -30,10 +30,10 @@ export const N1Logo: React.FC<N1LogoProps> = ({
           display: "block",
           borderRadius: "6px",
         }}
-        className="n1-logo-img"
+        className="zentry-logo-img"
       />
     </div>
   );
 };
 
-export default N1Logo;
+export default ZentryLogo;

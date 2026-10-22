@@ -19,15 +19,15 @@ const INTRO_MS = 1750;
  * own after a few seconds.
  */
 export function finishIntro() {
-  const intro = document.getElementById("n1-intro");
+  const intro = document.getElementById("zentry-intro");
   if (!intro) return;
   const loading = () => document.querySelector(".brand-loader") !== null;
   const lift = () => {
-    if (!loading()) return intro.classList.add("n1-intro-done");
+    if (!loading()) return intro.classList.add("zentry-intro-done");
     const watch = new MutationObserver(() => {
       if (loading()) return;
       watch.disconnect();
-      intro.classList.add("n1-intro-done");
+      intro.classList.add("zentry-intro-done");
     });
     watch.observe(document.getElementById("root") ?? document.body, { childList: true, subtree: true });
   };
@@ -49,8 +49,8 @@ export function startScrollReveal() {
     for (const entry of entries) {
       if (!entry.isIntersecting) continue;
       onView.unobserve(entry.target);
-      entry.target.classList.remove("n1-reveal-wait");
-      entry.target.classList.add("n1-reveal-in");
+      entry.target.classList.remove("zentry-reveal-wait");
+      entry.target.classList.add("zentry-reveal-in");
     }
   }, { rootMargin: "0px 0px -8% 0px" });
 
@@ -60,7 +60,7 @@ export function startScrollReveal() {
     const { top, height } = panel.getBoundingClientRect();
     // Hidden tabs (no size) and panels that start on screen are not touched.
     if (height === 0 || top < window.innerHeight) return;
-    panel.classList.add("n1-reveal-wait");
+    panel.classList.add("zentry-reveal-wait");
     onView.observe(panel);
   };
 

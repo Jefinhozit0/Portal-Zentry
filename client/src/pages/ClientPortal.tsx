@@ -13,7 +13,7 @@ const STEP_ICONS: Record<BotStepId, LucideIcon> = {
 };
 /** How long the assistant shows "typing" before each reply. */
 const BOT_TYPING_MS = 700;
-import { N1Logo } from "@/components/N1Logo";
+import { ZentryLogo } from "@/components/ZentryLogo";
 import { BrandLoader } from "@/components/BrandLoader";
 import { MaintenanceScreen, useMaintenance } from "@/components/MaintenanceScreen";
 import { AppSetupCard } from "@/components/AppSetupCard";
@@ -47,7 +47,7 @@ export function ChangePasswordScreen({ onDone, onLogout }: { onDone: () => void;
   return (
     <main className="client-portal-center">
       <div className="login-panel-inner">
-        <N1Logo size="md" />
+        <ZentryLogo size="md" />
         <h2>Crie sua senha</h2>
         <p className="login-subtitle">Este é seu primeiro acesso. Troque a senha provisória recebida por e-mail por uma senha só sua.</p>
         <form onSubmit={submit} className="login-form">
@@ -247,7 +247,7 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="client-portal">
       <header className="client-portal-header">
-        <N1Logo size="sm" />
+        <ZentryLogo size="sm" />
         <div className="client-portal-header-actions">
           <ThemeToggle />
           <button className="secondary-button" onClick={onLogout}><LogOut size={15} /> Sair</button>
@@ -259,7 +259,7 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
             <AlertTriangle size={22} />
             <div>
               <h2>Não foi possível abrir o portal</h2>
-              <p>{termosQuery.error.message} Fale com a equipe N1 Soluções.</p>
+              <p>{termosQuery.error.message} Fale com a equipe Zentry Soluções.</p>
             </div>
           </section>
         )}
@@ -271,8 +271,8 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
             <div className="client-terms-text" tabIndex={0} aria-label="Texto dos termos">
               {TERMS_SECTIONS.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p></section>)}
             </div>
-            <label className="client-terms-agree"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /> Li e aceito os termos de uso, o tratamento dos meus dados e a instalação do app da N1 com notificações neste aparelho.</label>
-            {!isInstalledApp() && (installPrompt.canPrompt || isIosSafari()) && <p className="client-portal-muted client-terms-app-hint">{installPrompt.canPrompt ? "Ao continuar, o aparelho pergunta se pode instalar o app da N1." : "Ao continuar, mostramos como colocar o app da N1 na tela de início."}</p>}
+            <label className="client-terms-agree"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /> Li e aceito os termos de uso, o tratamento dos meus dados e a instalação do app da Zentry com notificações neste aparelho.</label>
+            {!isInstalledApp() && (installPrompt.canPrompt || isIosSafari()) && <p className="client-portal-muted client-terms-app-hint">{installPrompt.canPrompt ? "Ao continuar, o aparelho pergunta se pode instalar o app da Zentry." : "Ao continuar, mostramos como colocar o app da Zentry na tela de início."}</p>}
             {aceitarTermos.error && <p className="form-message">{aceitarTermos.error.message}</p>}
             <div className="client-terms-actions">
               <button className="primary-button" disabled={!agreed || aceitarTermos.isPending} onClick={acceptTerms}>{aceitarTermos.isPending ? "Registrando..." : "Aceitar e continuar"}</button>
@@ -285,7 +285,7 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
             <AlertTriangle size={22} />
             <div>
               <h2>Não encontramos seu processo</h2>
-              <p>{processoQuery.error.message} Fale com a equipe N1 Soluções.</p>
+              <p>{processoQuery.error.message} Fale com a equipe Zentry Soluções.</p>
             </div>
           </section>
         )}
@@ -362,13 +362,13 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
           <section className="client-portal-card client-portal-chat">
             <div className="client-portal-chat-head">
               <h2>Fale com a equipe</h2>
-              <p><LockKeyhole size={13} /> Conversa privada com a N1 Soluções</p>
+              <p><LockKeyhole size={13} /> Conversa privada com a Zentry Soluções</p>
             </div>
             <div className="client-portal-chat-body" ref={chatBody} aria-live="polite">
               {mensagensQuery.isLoading && <p className="client-portal-empty">Carregando mensagens...</p>}
               {messages.map((message) => message.from === "bot" ? (
                 <div key={message.id} className="client-bubble client-bubble-team client-bubble-bot">
-                  <span className="client-bubble-author"><Bot size={13} /> Assistente N1</span>
+                  <span className="client-bubble-author"><Bot size={13} /> Assistente Zentry</span>
                   <p>{message.text}</p>
                   <small>{message.time}</small>
                 </div>
@@ -376,14 +376,14 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
                 <div key={message.id} className="client-bubble client-bubble-own client-bubble-choice"><p>{message.text}</p></div>
               ) : (
                 <div key={message.id} className={`client-bubble ${message.from === "client" ? "client-bubble-own" : "client-bubble-team"}${message.from === "team" && arrived(message.id) ? " client-bubble-new" : ""}`}>
-                  {message.from === "team" && <span className="client-bubble-author">Equipe N1</span>}
+                  {message.from === "team" && <span className="client-bubble-author">Equipe Zentry</span>}
                   <p>{message.text}</p>
                   <small>{message.time} {message.from === "client" && <CheckCircle2 size={12} />}</small>
                 </div>
               ))}
               {botTrail.map((entry) => entry.from === "bot" ? (
                 <div key={`local-${entry.id}`} className="client-bubble client-bubble-team client-bubble-bot client-bubble-new">
-                  <span className="client-bubble-author"><Bot size={13} /> Assistente N1</span>
+                  <span className="client-bubble-author"><Bot size={13} /> Assistente Zentry</span>
                   <p>{entry.text}</p>
                 </div>
               ) : (
@@ -392,7 +392,7 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
               {pendingText && <div className="client-bubble client-bubble-own client-bubble-pending"><p>{pendingText}</p><small>Enviando...</small></div>}
               {botTyping && (
                 <div className="client-bubble client-bubble-team client-bubble-bot client-bubble-new" role="status" aria-label="O assistente está digitando">
-                  <span className="client-bubble-author"><Bot size={13} /> Assistente N1</span>
+                  <span className="client-bubble-author"><Bot size={13} /> Assistente Zentry</span>
                   <span className="client-typing-dots" aria-hidden="true"><i /><i /><i /></span>
                 </div>
               )}
@@ -421,7 +421,7 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
           </div>
         </>}
       </main>
-      <footer className="app-footer">© 2026 N1 Soluções <span>·</span> Todos os direitos reservados.</footer>
+      <footer className="app-footer">© 2026 Zentry Soluções <span>·</span> Todos os direitos reservados.</footer>
     </div>
   );
 }

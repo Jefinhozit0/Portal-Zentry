@@ -35,7 +35,7 @@ describe("sendVerificationCodeEmail", () => {
       auth: { user: "owner@gmail.com", pass: "FAKETESTONLYXXXX" },
     });
     expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({
-      from: { name: "N1 Soluções", address: "owner@gmail.com" },
+      from: { name: "Zentry Soluções", address: "owner@gmail.com" },
       to: "customer@example.com",
       text: expect.stringContaining("123456"),
     }));
@@ -54,7 +54,7 @@ describe("sendVerificationCodeEmail", () => {
 
     await sendVerificationCodeEmail("client@example.com", "123456", {
       resendApiKey: "re_test_key",
-      emailFrom: "N1 Solucoes <no-reply@example.com>",
+      emailFrom: "Zentry Solucoes <no-reply@example.com>",
     });
 
     expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.objectContaining({
@@ -74,7 +74,7 @@ describe("sendVerificationCodeEmail", () => {
 
     await expect(sendVerificationCodeEmail("client@example.com", "123456", {
       resendApiKey: "re_test_key",
-      emailFrom: "N1 Solucoes <no-reply@example.com>",
+      emailFrom: "Zentry Solucoes <no-reply@example.com>",
     })).rejects.toThrow("só permite enviar para o e-mail proprietário da conta");
   });
 
@@ -83,7 +83,7 @@ describe("sendVerificationCodeEmail", () => {
 
     await expect(sendVerificationCodeEmail("client@example.com", "123456", {
       resendApiKey: "re_test_key",
-      emailFrom: "N1 Solucoes <no-reply@example.com>",
+      emailFrom: "Zentry Solucoes <no-reply@example.com>",
     })).rejects.toThrow("Gmail não pode ser usado como remetente");
   });
 });

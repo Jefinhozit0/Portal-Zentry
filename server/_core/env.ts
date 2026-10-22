@@ -13,7 +13,7 @@ export const ENV = {
   emailFrom: process.env.EMAIL_FROM ?? "",
   gmailUser: process.env.GMAIL_USER ?? "",
   gmailAppPassword: process.env.GMAIL_APP_PASSWORD ?? "",
-  /** E-mails of the N1 team, comma separated. Only these accounts open the team area. */
+  /** E-mails of the Zentry team, comma separated. Only these accounts open the team area. */
   staffEmails: emailList(process.env.STAFF_EMAILS),
   /** Team members who may also delete (clients, conversations, documents, sales) and see the action log. */
   adminEmails: emailList(process.env.ADMIN_EMAILS),

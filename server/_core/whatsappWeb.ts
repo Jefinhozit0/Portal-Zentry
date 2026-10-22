@@ -53,7 +53,7 @@ export async function startWhatsAppWeb(): Promise<void> {
   const socket = makeWASocket({
     auth: state,
     version,
-    browser: Browsers.windows("N1 Portal"),
+    browser: Browsers.windows("Portal Zentry"),
     logger: pino({ level: "silent" }),
     markOnlineOnConnect: false,
     syncFullHistory: false,

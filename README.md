@@ -1,8 +1,8 @@
-# N1 Portal
+# Portal Zentry
 
-Portal da **N1 Soluções** com duas áreas:
+Portal da **Zentry Soluções** com duas áreas:
 
-- **Área interna (equipe N1):** painel de indicadores, cadastro e acompanhamento de clientes, chargebacks, atendimento por chat e o Sales HUB comercial.
+- **Área interna (equipe Zentry):** painel de indicadores, cadastro e acompanhamento de clientes, chargebacks, atendimento por chat e o Sales HUB comercial.
 - **Área do cliente:** o cliente cria a senha pelo link de primeiro acesso, aceita os termos de uso e acompanha o próprio processo e as mensagens.
 
 ## Stack
@@ -24,7 +24,7 @@ Portal da **N1 Soluções** com duas áreas:
 - **Clientes:** busca, filtros por status, cadastro com serviços contratados, edição, tags salvas e página de detalhe com status, progresso, documentos e linha do tempo. No cadastro, o cliente recebe o link curto de primeiro acesso por e-mail e WhatsApp, com opção de reenviar.
 - **Chargebacks:** lista com detalhe de cada caso.
 - **Atendimento:** conversas com os clientes (mensagens e chamados). A equipe recebe e-mail quando um cliente escreve.
-- **Sales HUB:** vendas por setor (Comercial e Jurídico) e por mês, ranking de consultores, evolução de 12 meses, horários das vendas, N1 Control consolidado, cadastro e edição de vendas, consultores salvos e exportação em CSV e PDF. Todos os números vêm das vendas registradas.
+- **Sales HUB:** vendas por setor (Comercial e Jurídico) e por mês, ranking de consultores, evolução de 12 meses, horários das vendas, Zentry Control consolidado, cadastro e edição de vendas, consultores salvos e exportação em CSV e PDF. Todos os números vêm das vendas registradas.
 - **Administração** (só administradores): WhatsApp da empresa com QR code na tela, backup diário, avisos automáticos, endereço público e registro de ações da equipe.
 - **Administradores e funcionários:** só quem está em `ADMIN_EMAILS` apaga clientes, conversas, documentos, vendas e consultores.
 - **Tema claro e escuro.**
@@ -130,7 +130,7 @@ Com `WHATSAPP_PROVIDER=web`, o servidor mostra um QR code no terminal ao iniciar
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\instalar-inicio-automatico.ps1
 ```
-Cria a tarefa "N1 Portal" no Windows: a cada logon, o portal e o túnel do Cloudflare ligam escondidos e voltam sozinhos se caírem. Também tira a suspensão na tomada. Os registros ficam em `logs\`. Para desfazer, rode `scripts\remover-inicio-automatico.ps1`. Com `APP_URL=auto`, os links novos seguem o endereço atual do túnel.
+Cria a tarefa "Portal Zentry" no Windows: a cada logon, o portal e o túnel do Cloudflare ligam escondidos e voltam sozinhos se caírem. Também tira a suspensão na tomada. Os registros ficam em `logs\`. Para desfazer, rode `scripts\remover-inicio-automatico.ps1`. Com `APP_URL=auto`, os links novos seguem o endereço atual do túnel.
 
 ### Backup e restauração
 O servidor faz um backup por dia na pasta `backups\` (últimos 30 dias, mais uma cópia de cada documento). A página Administração mostra o último backup e tem o botão "Fazer backup agora". Para trazer registros de volta:

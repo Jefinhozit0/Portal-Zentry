@@ -14,8 +14,8 @@ $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfil
 $atLogon = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $every5min = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable -MultipleInstances IgnoreNew
-Register-ScheduledTask -TaskName "N1 Portal" -Action $action -Trigger @($atLogon, $every5min) -Settings $settings -Description "Liga o portal N1 ao entrar no Windows e o religa se o vigia parar." -Force | Out-Null
-Write-Output "Tarefa 'N1 Portal' criada: o portal liga sozinho no próximo logon."
+Register-ScheduledTask -TaskName "Portal Zentry" -Action $action -Trigger @($atLogon, $every5min) -Settings $settings -Description "Liga o portal Zentry ao entrar no Windows e o religa se o vigia parar." -Force | Out-Null
+Write-Output "Tarefa 'Portal Zentry' criada: o portal liga sozinho no próximo logon."
 
 # 2. Energia (só na tomada): nunca suspender e não fazer nada ao fechar a tampa.
 #    Guarda os valores atuais para o script de remoção conseguir voltar como estava.

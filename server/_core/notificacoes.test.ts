@@ -10,8 +10,8 @@ describe("pushText", () => {
 
   it("says what changed without the client's name (it shows on the lock screen)", () => {
     expect(pushText("status", "Concluído")).toMatchObject({ title: "Seu processo foi atualizado", body: "Situação atual: Concluído.", tag: "status" });
-    expect(pushText("documento", "Contrato.pdf").body).toBe("A N1 adicionou: Contrato.pdf.");
-    expect(pushText("documento").body).toBe("A N1 adicionou um documento ao seu processo.");
+    expect(pushText("documento", "Contrato.pdf").body).toBe("A Zentry adicionou: Contrato.pdf.");
+    expect(pushText("documento").body).toBe("A Zentry adicionou um documento ao seu processo.");
   });
 });
 

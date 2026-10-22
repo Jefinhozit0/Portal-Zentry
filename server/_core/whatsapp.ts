@@ -64,7 +64,7 @@ export async function sendAccessWhatsApp(
 /** Same words as the Meta template, sent as plain text through the unofficial connection. */
 export function accessMessageText(params: { firstName: string; link: string }) {
   return [
-    `Olá, ${params.firstName}! 👋 Que bom ter você com a gente na *N1 Soluções*! 🎉`,
+    `Olá, ${params.firstName}! 👋 Que bom ter você com a gente na *Zentry Soluções*! 🎉`,
     "",
     "Seu cadastro está pronto e agora você acompanha o seu processo de pertinho, direto do celular:",
     "",
@@ -94,7 +94,7 @@ export function isWhatsAppEnabled(env: Pick<typeof ENV, "whatsappProvider"> & Wh
  */
 export function migrationMessageText(params: { firstName: string; link: string }) {
   return [
-    `Olá, ${params.firstName}! 👋 Aqui é da *N1 Soluções*.`,
+    `Olá, ${params.firstName}! 👋 Aqui é da *Zentry Soluções*.`,
     "",
     "Temos uma novidade: o acompanhamento do seu processo agora é feito pelo nosso *novo portal*, mais simples e completo que o sistema anterior. 🚀",
     "",
@@ -117,7 +117,7 @@ export function migrationMessageText(params: { firstName: string; link: string }
 /** Reminder for a client from the old system who has not created the password yet. */
 export function migrationReminderText(params: { firstName: string; link: string }) {
   return [
-    `Oi, ${params.firstName}! 😊 Aqui é da *N1 Soluções*.`,
+    `Oi, ${params.firstName}! 😊 Aqui é da *Zentry Soluções*.`,
     "",
     "Seu processo já está no nosso novo portal, esperando por você. Por lá você vê cada atualização, recebe aviso quando algo muda e fala com a equipe sem precisar ligar.",
     "",
@@ -147,7 +147,7 @@ export async function sendAccessMessage(phone: string, params: { firstName: stri
 /** Reminder for a client who has not created the password yet; the link is a new one. */
 export function accessReminderText(params: { firstName: string; link: string }) {
   return [
-    `Oi, ${params.firstName}! 😊 Aqui é da *N1 Soluções*.`,
+    `Oi, ${params.firstName}! 😊 Aqui é da *Zentry Soluções*.`,
     "",
     "Vimos que você ainda não entrou no portal para acompanhar o seu processo. É rapidinho: toque no link, crie sua senha e pronto.",
     "",

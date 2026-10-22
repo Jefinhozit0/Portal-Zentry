@@ -15,8 +15,8 @@ export async function sendVerificationCodeEmail(
   code: string,
   config: EmailProviderConfig = ENV,
 ): Promise<void> {
-  const subject = `${code} é seu código de verificação | N1 Soluções`;
-  const text = `Seu código de verificação da N1 Soluções é: ${code}. Se você não solicitou este código, ignore esta mensagem.`;
+  const subject = `${code} é seu código de verificação | Zentry Soluções`;
+  const text = `Seu código de verificação da Zentry Soluções é: ${code}. Se você não solicitou este código, ignore esta mensagem.`;
   const html = `<div style="font-family:Arial,sans-serif;color:#202124"><h1 style="font-size:20px">Verificação de e-mail</h1><p>Use este código para continuar:</p><p style="font-size:32px;font-weight:700;letter-spacing:6px">${code}</p><p>Se você não solicitou este código, ignore esta mensagem.</p></div>`;
   await sendEmail({ to, subject, text, html }, config);
 }
@@ -26,9 +26,9 @@ export async function sendPasswordResetCodeEmail(
   code: string,
   config: EmailProviderConfig = ENV,
 ): Promise<void> {
-  const subject = `${code} é seu código para redefinir a senha | N1 Soluções`;
-  const text = `Seu código para criar uma nova senha no portal da N1 Soluções é: ${code}. Ele vale por 10 minutos. Se você não pediu para redefinir a senha, ignore esta mensagem; sua senha atual continua valendo.`;
-  const html = `<div style="font-family:Arial,sans-serif;color:#202124"><h1 style="font-size:20px">Redefinição de senha</h1><p>Use este código para criar uma nova senha no portal da N1 Soluções:</p><p style="font-size:32px;font-weight:700;letter-spacing:6px">${code}</p><p>O código vale por 10 minutos.</p><p style="color:#5f6368;font-size:13px">Se você não pediu para redefinir a senha, ignore esta mensagem. Sua senha atual continua valendo.</p></div>`;
+  const subject = `${code} é seu código para redefinir a senha | Zentry Soluções`;
+  const text = `Seu código para criar uma nova senha no portal da Zentry Soluções é: ${code}. Ele vale por 10 minutos. Se você não pediu para redefinir a senha, ignore esta mensagem; sua senha atual continua valendo.`;
+  const html = `<div style="font-family:Arial,sans-serif;color:#202124"><h1 style="font-size:20px">Redefinição de senha</h1><p>Use este código para criar uma nova senha no portal da Zentry Soluções:</p><p style="font-size:32px;font-weight:700;letter-spacing:6px">${code}</p><p>O código vale por 10 minutos.</p><p style="color:#5f6368;font-size:13px">Se você não pediu para redefinir a senha, ignore esta mensagem. Sua senha atual continua valendo.</p></div>`;
   await sendEmail({ to, subject, text, html }, config);
 }
 
@@ -40,11 +40,11 @@ export async function sendClientAccessEmail(
   const firstName = access.name.trim().split(/\s+/)[0] || "cliente";
   if (access.migrated) return sendMigrationEmail(to, firstName, access.link, Boolean(access.reminder), config);
   if (access.reminder) return sendAccessReminderEmail(to, firstName, access.link, config);
-  const subject = "Seu acesso ao portal | N1 Soluções";
+  const subject = "Seu acesso ao portal | Zentry Soluções";
   const text = [
     `Olá, ${firstName}!`,
     "",
-    "Seu cadastro na N1 Soluções foi concluído. Pelo link abaixo você cria sua senha, aceita os termos de uso e passa a acompanhar o seu processo:",
+    "Seu cadastro na Zentry Soluções foi concluído. Pelo link abaixo você cria sua senha, aceita os termos de uso e passa a acompanhar o seu processo:",
     "",
     access.link,
     "",
@@ -52,17 +52,17 @@ export async function sendClientAccessEmail(
     "O link vale por 7 dias e só pode ser usado uma vez.",
     "Se você não reconhece este cadastro, ignore esta mensagem.",
   ].join("\n");
-  const html = `<div style="font-family:Arial,sans-serif;color:#171614;max-width:520px"><h1 style="font-size:20px">Olá, ${escapeHtml(firstName)}!</h1><p>Seu cadastro na N1 Soluções foi concluído. Pelo botão abaixo você cria sua senha, aceita os termos de uso e passa a acompanhar o seu processo.</p><p style="margin:24px 0"><a href="${escapeHtml(access.link)}" style="display:inline-block;background:#131312;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Criar minha senha</a></p><p>Seu login é este e-mail: <strong>${escapeHtml(to)}</strong></p><p style="color:#6e685d;font-size:13px">O link vale por 7 dias e só pode ser usado uma vez. Se você não reconhece este cadastro, ignore esta mensagem.</p></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;color:#101216;max-width:520px"><h1 style="font-size:20px">Olá, ${escapeHtml(firstName)}!</h1><p>Seu cadastro na Zentry Soluções foi concluído. Pelo botão abaixo você cria sua senha, aceita os termos de uso e passa a acompanhar o seu processo.</p><p style="margin:24px 0"><a href="${escapeHtml(access.link)}" style="display:inline-block;background:#060708;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Criar minha senha</a></p><p>Seu login é este e-mail: <strong>${escapeHtml(to)}</strong></p><p style="color:#5f6672;font-size:13px">O link vale por 7 dias e só pode ser usado uma vez. Se você não reconhece este cadastro, ignore esta mensagem.</p></div>`;
   await sendEmail({ to, subject, text, html }, config);
 }
 
 /** Reminder for a client who has not opened the first-access link yet (a new link replaces the old one). */
 async function sendAccessReminderEmail(to: string, firstName: string, link: string, config: EmailProviderConfig) {
-  const subject = "Seu acesso ao portal ainda está esperando por você | N1 Soluções";
+  const subject = "Seu acesso ao portal ainda está esperando por você | Zentry Soluções";
   const text = [
     `Olá, ${firstName}!`,
     "",
-    "Notamos que você ainda não criou sua senha no portal da N1 Soluções. Por lá você acompanha cada etapa do seu processo e fala com a nossa equipe.",
+    "Notamos que você ainda não criou sua senha no portal da Zentry Soluções. Por lá você acompanha cada etapa do seu processo e fala com a nossa equipe.",
     "",
     "Use este novo link (o anterior deixou de valer):",
     link,
@@ -70,7 +70,7 @@ async function sendAccessReminderEmail(to: string, firstName: string, link: stri
     `Seu login é este e-mail: ${to}`,
     "O link vale por 7 dias e só pode ser usado uma vez.",
   ].join("\n");
-  const html = `<div style="font-family:Arial,sans-serif;color:#171614;max-width:520px"><h1 style="font-size:20px">Olá, ${escapeHtml(firstName)}!</h1><p>Notamos que você ainda não criou sua senha no portal da N1 Soluções. Por lá você acompanha cada etapa do seu processo e fala com a nossa equipe.</p><p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#131312;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Criar minha senha</a></p><p>Seu login é este e-mail: <strong>${escapeHtml(to)}</strong></p><p style="color:#6e685d;font-size:13px">Este link substitui o anterior. Ele vale por 7 dias e só pode ser usado uma vez.</p></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;color:#101216;max-width:520px"><h1 style="font-size:20px">Olá, ${escapeHtml(firstName)}!</h1><p>Notamos que você ainda não criou sua senha no portal da Zentry Soluções. Por lá você acompanha cada etapa do seu processo e fala com a nossa equipe.</p><p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#060708;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Criar minha senha</a></p><p>Seu login é este e-mail: <strong>${escapeHtml(to)}</strong></p><p style="color:#5f6672;font-size:13px">Este link substitui o anterior. Ele vale por 7 dias e só pode ser usado uma vez.</p></div>`;
   await sendEmail({ to, subject, text, html }, config);
 }
 
@@ -87,10 +87,10 @@ const MIGRATION_BENEFITS = [
  */
 async function sendMigrationEmail(to: string, firstName: string, link: string, reminder: boolean, config: EmailProviderConfig) {
   const subject = reminder
-    ? "Seu processo já está no novo portal esperando por você | N1 Soluções"
-    : "Conheça o novo portal da N1 Soluções: seu acesso chegou";
+    ? "Seu processo já está no novo portal esperando por você | Zentry Soluções"
+    : "Conheça o novo portal da Zentry Soluções: seu acesso chegou";
   const intro = reminder
-    ? "Notamos que você ainda não criou sua senha no novo portal da N1 Soluções. Seu processo já está lá, com o andamento e o histórico, esperando por você."
+    ? "Notamos que você ainda não criou sua senha no novo portal da Zentry Soluções. Seu processo já está lá, com o andamento e o histórico, esperando por você."
     : "Temos uma novidade: o acompanhamento do seu processo agora é feito pelo nosso novo portal, mais simples e completo que o sistema anterior. Seu caso já está lá, com o andamento e o histórico. Você só precisa criar sua senha.";
   const expiry = reminder ? "Este link substitui o anterior. Ele vale por 7 dias e só pode ser usado uma vez." : "O link vale por 7 dias e só pode ser usado uma vez.";
   const text = [
@@ -109,7 +109,7 @@ async function sendMigrationEmail(to: string, firstName: string, link: string, r
     "Ficou com alguma dúvida? É só responder este e-mail.",
   ].join("\n");
   const benefits = MIGRATION_BENEFITS.map((benefit) => `<li style="margin:4px 0">${escapeHtml(benefit)}</li>`).join("");
-  const html = `<div style="font-family:Arial,sans-serif;color:#171614;max-width:520px"><h1 style="font-size:20px">Olá, ${escapeHtml(firstName)}!</h1><p>${escapeHtml(intro)}</p><p style="margin-bottom:4px">No novo portal você pode:</p><ul style="padding-left:20px;margin-top:4px">${benefits}</ul><p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#131312;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Criar minha senha</a></p><p>Seu login é este e-mail: <strong>${escapeHtml(to)}</strong></p><p style="color:#6e685d;font-size:13px">${expiry} Ficou com alguma dúvida? É só responder este e-mail.</p></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;color:#101216;max-width:520px"><h1 style="font-size:20px">Olá, ${escapeHtml(firstName)}!</h1><p>${escapeHtml(intro)}</p><p style="margin-bottom:4px">No novo portal você pode:</p><ul style="padding-left:20px;margin-top:4px">${benefits}</ul><p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#060708;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Criar minha senha</a></p><p>Seu login é este e-mail: <strong>${escapeHtml(to)}</strong></p><p style="color:#5f6672;font-size:13px">${expiry} Ficou com alguma dúvida? É só responder este e-mail.</p></div>`;
   await sendEmail({ to, subject, text, html }, config);
 }
 
@@ -122,9 +122,9 @@ export async function sendNoticeEmail(
   const text = [notice.title, "", ...notice.paragraphs, ...(notice.button ? ["", `${notice.button.label}: ${notice.button.url}`] : [])].join("\n");
   const paragraphs = notice.paragraphs.map((paragraph) => `<p style="white-space:pre-wrap">${escapeHtml(paragraph)}</p>`).join("");
   const button = notice.button
-    ? `<p style="margin:24px 0"><a href="${escapeHtml(notice.button.url)}" style="display:inline-block;background:#131312;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">${escapeHtml(notice.button.label)}</a></p>`
+    ? `<p style="margin:24px 0"><a href="${escapeHtml(notice.button.url)}" style="display:inline-block;background:#060708;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">${escapeHtml(notice.button.label)}</a></p>`
     : "";
-  const html = `<div style="font-family:Arial,sans-serif;color:#171614;max-width:520px"><h1 style="font-size:20px">${escapeHtml(notice.title)}</h1>${paragraphs}${button}</div>`;
+  const html = `<div style="font-family:Arial,sans-serif;color:#101216;max-width:520px"><h1 style="font-size:20px">${escapeHtml(notice.title)}</h1>${paragraphs}${button}</div>`;
   await sendEmail({ to, subject: notice.subject, text, html }, config);
 }
 
@@ -146,7 +146,7 @@ async function sendEmail({ to, subject, text, html }: EmailMessage, config: Emai
     });
 
     try {
-      await transporter.sendMail({ from: { name: "N1 Soluções", address: config.gmailUser }, to, subject, text, html });
+      await transporter.sendMail({ from: { name: "Zentry Soluções", address: config.gmailUser }, to, subject, text, html });
       return;
     } catch (error) {
       const code = (error as { code?: string }).code;

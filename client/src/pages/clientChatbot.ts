@@ -114,7 +114,7 @@ export const BOT_STEPS: Record<BotStepId, BotStep> = {
   },
   atendente: {
     label: "Falar com um atendente",
-    reply: (_p, topic) => `Certo! Escreva sua dúvida no campo abaixo e envie. Ela vai para a equipe da N1 com o assunto "${topic}", e a resposta aparece aqui nesta conversa.`,
+    reply: (_p, topic) => `Certo! Escreva sua dúvida no campo abaixo e envie. Ela vai para a equipe da Zentry com o assunto "${topic}", e a resposta aparece aqui nesta conversa.`,
     options: ["menu"],
     opensTicket: true,
   },
@@ -153,7 +153,7 @@ export const THANKS_REPLY = "Por nada! Se precisar de mais alguma coisa, é só 
 export const WHILE_WAITING = "Enquanto isso, o que já posso adiantar:";
 
 export function greeting(process: ProcessInfo) {
-  return `Olá, ${process.firstName}! Sou o assistente virtual da N1 Soluções. Escolha uma opção abaixo ou escreva sua dúvida.`;
+  return `Olá, ${process.firstName}! Sou o assistente virtual da Zentry Soluções. Escolha uma opção abaixo ou escreva sua dúvida.`;
 }
 
 export const TICKET_SENT_REPLY = "Pronto, sua mensagem foi enviada para a equipe. A resposta aparece aqui nesta conversa, normalmente em horário comercial.";

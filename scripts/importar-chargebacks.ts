@@ -38,7 +38,7 @@ const keyOf = (c: { client: string; valor: number | string | null; data_venda: s
 
 /**
  * The spreadsheet's REVERSÃO column -> the portal's statuses:
- * "RESTITUIDO PELA N1" (company gave the money back) -> Cancelado; "REVERTIDO", "PAGOU...", "sim" -> Revertido;
+ * "RESTITUIDO PELA Zentry" (company gave the money back) -> Cancelado; "REVERTIDO", "PAGOU...", "sim" -> Revertido;
  * blank or anything else -> Em disputa.
  */
 function statusFromReversal(reversal: string | null): ChargebackStatus {

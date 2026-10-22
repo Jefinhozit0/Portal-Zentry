@@ -1,6 +1,6 @@
 /**
  * Terms the client accepts on first access. DRAFT: the text below must be reviewed by
- * N1's legal team before going live. When the text changes, bump TERMS_VERSION so every
+ * Zentry's legal team before going live. When the text changes, bump TERMS_VERSION so every
  * client is asked to accept the new version on their next visit — unless the old version goes
  * into STILL_VALID_VERSIONS, which keeps those acceptances counting.
  */
@@ -22,7 +22,7 @@ export const TERMS_TITLE = "Termos de uso do portal e tratamento de dados";
 export const TERMS_SECTIONS: { title: string; text: string }[] = [
   {
     title: "1. Sobre o portal",
-    text: "O portal da N1 Soluções permite que você acompanhe a situação do seu processo, receba avisos e converse com a nossa equipe. As informações exibidas têm caráter informativo e podem ser atualizadas a qualquer momento conforme o andamento do caso.",
+    text: "O portal da Zentry Soluções permite que você acompanhe a situação do seu processo, receba avisos e converse com a nossa equipe. As informações exibidas têm caráter informativo e podem ser atualizadas a qualquer momento conforme o andamento do caso.",
   },
   {
     title: "2. Seu acesso",

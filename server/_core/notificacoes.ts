@@ -38,19 +38,19 @@ function claimSlot(key: string, intervalMs: number) {
 function clientTexts(kind: ClientNoticeKind, firstName: string, detail: string | undefined, url: string) {
   if (kind === "resposta") {
     return {
-      whatsapp: `Olá, ${firstName}! 💬 A equipe da *N1 Soluções* respondeu sua mensagem no portal.\n\nToque para ver: ${url}`,
-      email: { subject: "A equipe da N1 respondeu sua mensagem", title: `Olá, ${firstName}!`, paragraphs: ["A equipe da N1 Soluções respondeu sua mensagem no portal."] },
+      whatsapp: `Olá, ${firstName}! 💬 A equipe da *Zentry Soluções* respondeu sua mensagem no portal.\n\nToque para ver: ${url}`,
+      email: { subject: "A equipe da Zentry respondeu sua mensagem", title: `Olá, ${firstName}!`, paragraphs: ["A equipe da Zentry Soluções respondeu sua mensagem no portal."] },
     };
   }
   if (kind === "status") {
     return {
-      whatsapp: `Olá, ${firstName}! 📌 Seu processo na *N1 Soluções* foi atualizado e agora está como *${detail}*.\n\nVeja os detalhes no portal: ${url}`,
-      email: { subject: `Seu processo foi atualizado: ${detail}`, title: `Olá, ${firstName}!`, paragraphs: [`Seu processo na N1 Soluções foi atualizado e agora está como "${detail}".`] },
+      whatsapp: `Olá, ${firstName}! 📌 Seu processo na *Zentry Soluções* foi atualizado e agora está como *${detail}*.\n\nVeja os detalhes no portal: ${url}`,
+      email: { subject: `Seu processo foi atualizado: ${detail}`, title: `Olá, ${firstName}!`, paragraphs: [`Seu processo na Zentry Soluções foi atualizado e agora está como "${detail}".`] },
     };
   }
   return {
-    whatsapp: `Olá, ${firstName}! 📄 A *N1 Soluções* adicionou um documento ao seu processo${detail ? `: ${detail}` : ""}.\n\nVeja no portal: ${url}`,
-    email: { subject: "Novo documento no seu processo", title: `Olá, ${firstName}!`, paragraphs: [`A N1 Soluções adicionou um documento ao seu processo${detail ? `: ${detail}` : ""}.`] },
+    whatsapp: `Olá, ${firstName}! 📄 A *Zentry Soluções* adicionou um documento ao seu processo${detail ? `: ${detail}` : ""}.\n\nVeja no portal: ${url}`,
+    email: { subject: "Novo documento no seu processo", title: `Olá, ${firstName}!`, paragraphs: [`A Zentry Soluções adicionou um documento ao seu processo${detail ? `: ${detail}` : ""}.`] },
   };
 }
 
@@ -59,9 +59,9 @@ function clientTexts(kind: ClientNoticeKind, firstName: string, detail: string |
  * The address is relative, so it opens wherever the app was installed from.
  */
 export function pushText(kind: ClientNoticeKind, detail?: string): PushMessage {
-  if (kind === "resposta") return { title: "Nova mensagem da N1", body: "A equipe respondeu sua mensagem. Toque para ver.", url: "/?aba=conversa", tag: "resposta" };
+  if (kind === "resposta") return { title: "Nova mensagem da Zentry", body: "A equipe respondeu sua mensagem. Toque para ver.", url: "/?aba=conversa", tag: "resposta" };
   if (kind === "status") return { title: "Seu processo foi atualizado", body: detail ? `Situação atual: ${detail}.` : "Veja a situação atual no portal.", url: "/", tag: "status" };
-  return { title: "Novo documento no seu processo", body: detail ? `A N1 adicionou: ${detail}.` : "A N1 adicionou um documento ao seu processo.", url: "/", tag: "documento" };
+  return { title: "Novo documento no seu processo", body: detail ? `A Zentry adicionou: ${detail}.` : "A Zentry adicionou um documento ao seu processo.", url: "/", tag: "documento" };
 }
 
 /** Tells the client about a change. Runs in the background; call it without await. */

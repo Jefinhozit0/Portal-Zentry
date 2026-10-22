@@ -23,7 +23,7 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { Button } from "@/components/ui/button";
 import type { Session } from "@supabase/supabase-js";
 import { trpc } from "@/lib/trpc";
-import { N1Logo } from "@/components/N1Logo";
+import { ZentryLogo } from "@/components/ZentryLogo";
 import { BrandLoader } from "@/components/BrandLoader";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CountUp } from "@/components/CountUp";
@@ -77,7 +77,7 @@ const clientServices = ["Financiamento Imobiliário", "Financiamento Veicular", 
 export { hubMoney } from "./salesHubData";
 
 function Logo({ compact = false, size = "md" }: { compact?: boolean; size?: "sm" | "md" | "lg" | "xl" }) {
-  return <N1Logo compact={compact} size={size} />;
+  return <ZentryLogo compact={compact} size={size} />;
 }
 
 /** A row of the clientes table as the client screens use it. */
@@ -238,16 +238,16 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <section className="login-hero">
         <div className="login-hero-top"><Logo size="lg" /></div>
         <div className="hero-copy">
-          <span className="eyebrow"><ShieldCheck size={15} /> Portal do cliente N1</span>
+          <span className="eyebrow"><ShieldCheck size={15} /> Portal do cliente Zentry</span>
           <h1>Seu processo,<br /><em>transparente</em> de ponta a ponta.</h1>
           <p>Acompanhe cada etapa com clareza, segurança e o cuidado de uma equipe que está do seu lado.</p>
           <ul className="login-features">
             <li><CheckCircle2 size={17} /> Status e progresso do seu processo, atualizados pela equipe</li>
             <li><CheckCircle2 size={17} /> Documentos do seu caso para baixar quando precisar</li>
-            <li><CheckCircle2 size={17} /> Conversa direta com a equipe da N1, com aviso no WhatsApp</li>
+            <li><CheckCircle2 size={17} /> Conversa direta com a equipe da Zentry, com aviso no WhatsApp</li>
           </ul>
         </div>
-        <div className="login-hero-footer"><span>N1 Soluções</span><strong>Acompanhamento do início ao fim</strong><small>pelo celular ou computador</small></div>
+        <div className="login-hero-footer"><span>Zentry Soluções</span><strong>Acompanhamento do início ao fim</strong><small>pelo celular ou computador</small></div>
       </section>
       <section className="login-panel">
         <ThemeToggle className="login-theme-toggle" />
@@ -265,7 +265,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               <button className="primary-button login-button" type="submit">Entrar <ChevronRight size={18} /></button>
             </form>
             <button className="link-button" type="button" onClick={() => { setResetEmail(loginEmail); setMode("forgot"); setMessage(""); setNotice(""); }}>Esqueci minha senha</button>
-            <div className="first-access"><strong>Primeiro acesso?</strong><span>Toque no link que a N1 Soluções enviou por e-mail ou WhatsApp para criar sua senha. Se ele venceu, peça um novo à equipe.</span></div>
+            <div className="first-access"><strong>Primeiro acesso?</strong><span>Toque no link que a Zentry Soluções enviou por e-mail ou WhatsApp para criar sua senha. Se ele venceu, peça um novo à equipe.</span></div>
             <button className="link-button" type="button" onClick={() => { setMode("register"); setMessage(""); }}>Criar login</button>
           </> : mode === "register" ? <>
             <form onSubmit={requestLogin} className="login-form">
@@ -388,7 +388,7 @@ function Topbar({ view, onMenu, onSearch, onNotifications, onWhatsApp, userName 
   const hasAwaiting = useAwaitingConversations().length > 0;
   const titles: Record<View, [string, string]> = { dashboard: ["Dashboard", "Visão geral do seu portal"], clientes: ["Clientes", "Acompanhe pessoas e processos"], "client-detail": ["Detalhes do Cliente", "Informações completas do cliente"], chargebacks: ["Chargebacks", "Solicitações de devolução em andamento"], atendimento: ["Atendimento", "Converse com seus clientes"], termos: ["Termos", "Quem já aceitou os termos do portal e quem está pendente"], saleshub: ["Sales HUB", "Centro de inteligência comercial e jurídico"], admin: ["Administração", "WhatsApp, backup e registro de ações"] };
   const initials = userName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return <header className="topbar"><button className="mobile-menu-button icon-button" onClick={onMenu} aria-label="Abrir menu"><Menu size={21} /></button><div><p className="breadcrumb">N1 Soluções <ChevronRight size={14} /> {titles[view][0]}</p><h1>{titles[view][0]}</h1><span>{titles[view][1]}</span></div><div className="topbar-actions"><button className="icon-button" aria-label="Buscar clientes" title="Buscar clientes" onClick={onSearch}><Search size={19} /></button><button className="icon-button notification-button" aria-label="Abrir atendimentos" title="Abrir atendimentos" onClick={onNotifications}><Bell size={19} />{hasAwaiting && <span />}</button><WhatsAppIndicator onClick={onWhatsApp} /><ThemeToggle /><span className="topbar-separator" /><div className="topbar-user"><span className="avatar avatar-gold">{initials}</span><div><strong>{userName}</strong><small>Online agora</small></div></div></div></header>;
+  return <header className="topbar"><button className="mobile-menu-button icon-button" onClick={onMenu} aria-label="Abrir menu"><Menu size={21} /></button><div><p className="breadcrumb">Zentry Soluções <ChevronRight size={14} /> {titles[view][0]}</p><h1>{titles[view][0]}</h1><span>{titles[view][1]}</span></div><div className="topbar-actions"><button className="icon-button" aria-label="Buscar clientes" title="Buscar clientes" onClick={onSearch}><Search size={19} /></button><button className="icon-button notification-button" aria-label="Abrir atendimentos" title="Abrir atendimentos" onClick={onNotifications}><Bell size={19} />{hasAwaiting && <span />}</button><WhatsAppIndicator onClick={onWhatsApp} /><ThemeToggle /><span className="topbar-separator" /><div className="topbar-user"><span className="avatar avatar-gold">{initials}</span><div><strong>{userName}</strong><small>Online agora</small></div></div></div></header>;
 }
 
 const formatInt = (value: number) => value.toLocaleString("pt-BR");
@@ -812,7 +812,7 @@ function PowerBanner() {
     : "Por enquanto tudo funciona para a equipe e para os clientes. Não feche a tampa nem deixe o notebook parado: se ele dormir, o portal sai do ar."}</p></div></div>;
 }
 
-const STAFF_PUSH_DISMISSED_KEY = "n1-staff-push-dismissed";
+const STAFF_PUSH_DISMISSED_KEY = "zentry-staff-push-dismissed";
 
 /** Offers this team member a notice on the phone or computer whenever a client writes in the portal. */
 function StaffPushBanner() {
@@ -924,9 +924,9 @@ export default function Home() {
     return (
       <main className="client-portal-center">
         <div className="login-panel-inner">
-          <N1Logo size="md" />
+          <ZentryLogo size="md" />
           <h2>Acesso em análise</h2>
-          <p className="login-subtitle">Sua conta foi criada, mas ainda precisa ser liberada pela administração da N1 Soluções para abrir a área da equipe. Assim que for liberada, é só entrar de novo.</p>
+          <p className="login-subtitle">Sua conta foi criada, mas ainda precisa ser liberada pela administração da Zentry Soluções para abrir a área da equipe. Assim que for liberada, é só entrar de novo.</p>
           <button className="link-button" type="button" onClick={handleLogout}>Sair</button>
         </div>
       </main>
@@ -961,7 +961,7 @@ export default function Home() {
         {view === "termos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><TermosPage onOpenClient={openClientRow} /></Suspense>}
         {view === "admin" && isAdmin && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><AdminPage /></Suspense>}
         {view === "saleshub" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><SalesHubPage userName={userName} isAdmin={isAdmin} onChargeback={(draft) => { setChargebackDraft(draft); navigate("chargebacks"); }} /></Suspense>}
-        <footer className="app-footer">© 2026 N1 Soluções <span>·</span> Todos os direitos reservados.</footer>
+        <footer className="app-footer">© 2026 Zentry Soluções <span>·</span> Todos os direitos reservados.</footer>
       </main>
     </div>
   );

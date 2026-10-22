@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { ChevronRight, Eye, EyeOff, LinkIcon } from "lucide-react";
-import { N1Logo } from "@/components/N1Logo";
+import { ZentryLogo } from "@/components/ZentryLogo";
 import { MaintenanceScreen, useMaintenance } from "@/components/MaintenanceScreen";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/lib/supabase";
@@ -52,13 +52,13 @@ function FirstAccessForm() {
     <main className="client-portal-center">
       <ThemeToggle className="login-theme-toggle" />
       <div className="login-panel-inner">
-        <N1Logo size="md" />
+        <ZentryLogo size="md" />
         {info.isLoading ? (
           <p className="login-subtitle first-access-loading">Abrindo seu link de acesso...</p>
         ) : !valid ? (
           <>
             <h2>Link expirado</h2>
-            <p className="login-subtitle">Este link de acesso expirou ou já foi usado. Peça um novo link à equipe da N1 Soluções ou, se você já criou sua senha, entre normalmente.</p>
+            <p className="login-subtitle">Este link de acesso expirou ou já foi usado. Peça um novo link à equipe da Zentry Soluções ou, se você já criou sua senha, entre normalmente.</p>
             <a className="primary-button login-button" href="/">Ir para o login <ChevronRight size={18} /></a>
           </>
         ) : (

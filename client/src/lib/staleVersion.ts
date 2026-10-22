@@ -11,7 +11,7 @@ export function isStaleVersionError(error: unknown): boolean {
   return STALE_CHUNK.test(message);
 }
 
-const KEY = "n1-reloaded-for-new-version";
+const KEY = "zentry-reloaded-for-new-version";
 const MIN_INTERVAL_MS = 30_000;
 
 /**

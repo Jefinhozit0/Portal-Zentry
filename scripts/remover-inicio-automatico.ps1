@@ -2,8 +2,8 @@
 # powershell -ExecutionPolicy Bypass -File scripts\remover-inicio-automatico.ps1
 
 $state = Join-Path $PSScriptRoot "energia-anterior.json"
-Unregister-ScheduledTask -TaskName "N1 Portal" -Confirm:$false -ErrorAction SilentlyContinue
-Write-Output "Tarefa 'N1 Portal' removida."
+Unregister-ScheduledTask -TaskName "Portal Zentry" -Confirm:$false -ErrorAction SilentlyContinue
+Write-Output "Tarefa 'Portal Zentry' removida."
 
 if (Test-Path $state) {
   $previous = Get-Content $state -Raw | ConvertFrom-Json

@@ -74,7 +74,7 @@ async function check() {
       notifyTeam(
         "O notebook do portal voltou para a tomada",
         ["O carregador foi ligado de novo. O portal segue no ar normalmente para a equipe e para os clientes."],
-        "✅ *O notebook do portal N1 voltou para a tomada.* O portal segue no ar normalmente.",
+        "✅ *O notebook do portal Zentry voltou para a tomada.* O portal segue no ar normalmente.",
       );
     }
     onBatterySince = null;
@@ -89,7 +89,7 @@ async function check() {
     notifyTeam(
       "Bateria do notebook do portal acabando: clientes em manutenção",
       [`O notebook que mantém o portal no ar está quase sem bateria${battery ? ` (${battery})` : ""}.`, "Os clientes já estão vendo a tela \"Em manutenção\". Ligue o carregador agora: quando a bateria acabar, o portal sai do ar para todos."],
-      `🔴 *Bateria do notebook do portal N1 acabando*${battery ? ` (${battery})` : ""}.\n\nOs clientes já estão vendo a tela "Em manutenção". Ligue o carregador agora.`,
+      `🔴 *Bateria do notebook do portal Zentry acabando*${battery ? ` (${battery})` : ""}.\n\nOs clientes já estão vendo a tela "Em manutenção". Ligue o carregador agora.`,
     );
     return;
   }
@@ -98,7 +98,7 @@ async function check() {
     notifyTeam(
       "O notebook do portal saiu da tomada",
       [`O notebook que mantém o portal no ar está na bateria${battery ? ` (${battery})` : ""}. Por enquanto, tudo funciona normalmente para a equipe e para os clientes.`, `Mas não feche a tampa nem deixe o notebook parado: se ele dormir, o portal sai do ar. Com a bateria em ${LOW_BATTERY_PERCENT}%, os clientes passam a ver a tela "Em manutenção".`],
-      `⚠️ *O notebook do portal N1 saiu da tomada*${battery ? ` (${battery})` : ""}.\n\nPor enquanto tudo funciona. Não feche a tampa nem deixe parado: se ele dormir, o portal cai. Ligue o carregador assim que puder.`,
+      `⚠️ *O notebook do portal Zentry saiu da tomada*${battery ? ` (${battery})` : ""}.\n\nPor enquanto tudo funciona. Não feche a tampa nem deixe parado: se ele dormir, o portal cai. Ligue o carregador assim que puder.`,
     );
   }
 }

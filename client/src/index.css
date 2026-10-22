@@ -7,7 +7,7 @@
 /*
  * Bridge: the shadcn/ui primitives (Select, Button, Input, toasts...) use these utility names.
  * They were never defined, so dropdowns and toasts rendered with a transparent background.
- * They now point at the N1 tokens below, so they follow both themes automatically.
+ * They now point at the Zentry tokens below, so they follow both themes automatically.
  */
 @theme inline {
   --font-sans: var(--font);
@@ -41,8 +41,8 @@
 }
 
 /*
- * N1 Soluções — visual "claro e profissional".
- * Navy is the main color, gold only marks details (active item, eyebrows).
+ * Zentry Soluções — visual "claro e profissional".
+ * Silver and black from the logo are the base; the logo blue (the --gold tokens, names kept) marks details (active item, eyebrows).
  * Every color lives in a token below; components never hard-code a hex.
  * Type: Inter for interface text, Source Serif 4 for page-level titles (editorial, jurídico).
  */
@@ -55,46 +55,46 @@
   --radius-card: 12px;
   --radius-surface: 16px;
 
-  --bg: #f6f5f1;
+  --bg: #f4f5f7;
   --surface: #ffffff;
-  --surface-muted: #faf9f6;
-  --surface-sunken: #f0eee8;
-  --border: #e6e2d9;
-  --border-strong: #d3cdc1;
-  --border-subtle: #efece6;
+  --surface-muted: #f9fafb;
+  --surface-sunken: #eceef2;
+  --border: #e0e3e9;
+  --border-strong: #cbd0d9;
+  --border-subtle: #eceff3;
 
-  --text: #171614;
-  --text-soft: #45413a;
-  --muted: #6e685d;
-  --placeholder: #8a8376;
+  --text: #101216;
+  --text-soft: #3b4049;
+  --muted: #5f6672;
+  --placeholder: #7d8490;
   /* Form field outline: 3:1 against the surface (WCAG 1.4.11) */
-  --input-border: #9a9386;
+  --input-border: #8b919c;
 
-  --navy: #171614;
-  --navy-hover: #2d2a25;
-  --navy-soft: #f5efe1;
-  --navy-line: #e2d5b3;
-  --link: #7a6328;
-  --focus-border: #8f7638;
-  --brand-surface: #131312;
+  --navy: #101216;
+  --navy-hover: #262a31;
+  --navy-soft: #e9f0fd;
+  --navy-line: #c4d6f8;
+  --link: #0b4fc0;
+  --focus-border: #0d5ad6;
+  --brand-surface: #060708;
   /* Text and icons placed on a primary fill (buttons, own chat bubbles) */
   --on-primary: #ffffff;
   --on-primary-muted: rgba(255, 255, 255, 0.7);
   --on-primary-check: #7ad3a8;
-  --chart-1: #171614;
-  --chart-2: #a58b4e;
+  --chart-1: #101216;
+  --chart-2: #0a62e6;
   --chart-3: var(--green);
-  --brand-highlight: #d0b56f;
+  --brand-highlight: #4f8ff7;
   /* Dim layer behind modals and the mobile menu */
-  --overlay: rgba(19, 19, 18, 0.5);
+  --overlay: rgba(6, 7, 8, 0.5);
   /* Raw names some shadcn/ui pieces (toasts) read directly */
   --popover: var(--surface);
   --popover-foreground: var(--text);
 
-  --gold: #a58b4e;
-  --gold-text: #7a6328;
-  --gold-soft: #f7f1e3;
-  --gold-line: #e6d8b3;
+  --gold: #0a62e6;
+  --gold-text: #0b4fc0;
+  --gold-soft: #ebf2fe;
+  --gold-line: #c6d9fb;
 
   --green: #157347;
   --green-soft: #e7f5ee;
@@ -112,21 +112,21 @@
   --purple-soft: #f4ecfd;
   --purple-line: #dcc6f6;
 
-  --sidebar-bg: #131312;
-  --sidebar-text: #c9c4b8;
-  --sidebar-muted: #8e887b;
+  --sidebar-bg: #060708;
+  --sidebar-text: #c2c7cf;
+  --sidebar-muted: #858c98;
   --sidebar-line: rgba(255, 255, 255, 0.07);
 
-  --heat-1: #f1e8d2;
-  --heat-2: #dcc794;
-  --heat-3: #b8994f;
-  --heat-4: #7a6328;
+  --heat-1: #e1ebfd;
+  --heat-2: #a9c6f8;
+  --heat-3: #3d7ff0;
+  --heat-4: #0b4fc0;
 
   --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
   --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.07), 0 1px 3px rgba(16, 24, 40, 0.05);
   --shadow-lg: 0 16px 40px rgba(16, 24, 40, 0.16);
-  --focus-ring: 0 0 0 3px rgba(165, 139, 78, 0.24);
+  --focus-ring: 0 0 0 3px rgba(10, 98, 230, 0.24);
 
   /* Kept for components that still read the old names */
   --panel: var(--surface);
@@ -145,39 +145,39 @@
 
 /* Dark mode: same layout, only the tokens change (ThemeProvider toggles .dark on <html>) */
 :root.dark {
-  --bg: #0e0e0d;
-  --surface: #171716;
-  --surface-muted: #1c1c1a;
-  --surface-sunken: #252420;
-  --border: #2e2c28;
-  --border-strong: #3d3a34;
-  --border-subtle: #232220;
+  --bg: #0b0c0e;
+  --surface: #15171a;
+  --surface-muted: #1a1c20;
+  --surface-sunken: #22252a;
+  --border: #2b2e34;
+  --border-strong: #3a3e46;
+  --border-subtle: #202227;
 
-  --text: #eeeae1;
-  --text-soft: #c4beb2;
-  --muted: #979084;
-  --placeholder: #8a8478;
-  --input-border: #6b665c;
+  --text: #eceef2;
+  --text-soft: #bfc4cc;
+  --muted: #8f96a1;
+  --placeholder: #858b96;
+  --input-border: #636974;
 
-  --navy: #c9ad66;
-  --navy-hover: #d6bc78;
-  --navy-soft: #2a2519;
-  --navy-line: #4a3f26;
-  --link: #d6bc78;
-  --focus-border: #c9ad66;
-  --brand-surface: #131312;
-  --on-primary: #131312;
-  --on-primary-muted: rgba(19, 19, 18, 0.62);
+  --navy: #4a8ef7;
+  --navy-hover: #6ea4f9;
+  --navy-soft: #13213a;
+  --navy-line: #1f3866;
+  --link: #6ea4f9;
+  --focus-border: #4a8ef7;
+  --brand-surface: #060708;
+  --on-primary: #060708;
+  --on-primary-muted: rgba(6, 7, 8, 0.62);
   --on-primary-check: #146c43;
-  --chart-1: #c9ad66;
-  --chart-2: #6f6656;
+  --chart-1: #4a8ef7;
+  --chart-2: #5f6672;
   --chart-3: #4cc28b;
   --overlay: rgba(0, 0, 0, 0.62);
 
-  --gold: #c9ad66;
-  --gold-text: #d6bc78;
-  --gold-soft: rgba(201, 173, 102, 0.12);
-  --gold-line: rgba(201, 173, 102, 0.3);
+  --gold: #4a8ef7;
+  --gold-text: #6ea4f9;
+  --gold-soft: rgba(74, 142, 247, 0.12);
+  --gold-line: rgba(74, 142, 247, 0.3);
 
   --green: #63d09d;
   --green-soft: rgba(34, 160, 107, 0.15);
@@ -195,21 +195,21 @@
   --purple-soft: rgba(160, 100, 230, 0.15);
   --purple-line: rgba(160, 100, 230, 0.34);
 
-  --sidebar-bg: #0b0b0a;
-  --sidebar-text: #c4beb2;
-  --sidebar-muted: #868074;
+  --sidebar-bg: #040506;
+  --sidebar-text: #bfc4cc;
+  --sidebar-muted: #80868f;
   --sidebar-line: rgba(255, 255, 255, 0.06);
 
-  --heat-1: #2a261d;
-  --heat-2: #4a3f26;
-  --heat-3: #7d6a3a;
-  --heat-4: #d0b56f;
+  --heat-1: #16223a;
+  --heat-2: #1f3866;
+  --heat-3: #2f5ca8;
+  --heat-4: #4f8ff7;
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
-  --focus-ring: 0 0 0 3px rgba(201, 173, 102, 0.3);
+  --focus-ring: 0 0 0 3px rgba(74, 142, 247, 0.3);
 
   color-scheme: dark;
 }
@@ -217,7 +217,7 @@
 :root.dark .login-hero, :root.dark .hub-hero-banner { border: 1px solid var(--border); }
 :root.dark .sidebar { border-right: 1px solid var(--border-subtle); }
 :root.dark .client-portal-header { border-bottom: 1px solid var(--border); }
-:root.dark .n1-logo-img { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
+:root.dark .zentry-logo-img { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
 
 * { box-sizing: border-box; }
 html { background: var(--bg); }
@@ -270,14 +270,14 @@ a:focus-visible, [tabindex]:focus-visible, tr:focus-visible {
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: padding-box; }
 
 /* Logo Component Styling */
-.n1-brand-logo {
+.zentry-brand-logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
   user-select: none;
 }
-.n1-logo-img {
+.zentry-logo-img {
   max-width: 100%;
   height: auto;
   object-fit: contain;
@@ -343,7 +343,7 @@ a:focus-visible, [tabindex]:focus-visible, tr:focus-visible {
 .hero-copy > p {
   max-width: 470px;
   margin: 0;
-  color: #cfc9bc;
+  color: #c3c8d0;
   font-size: 17px;
   line-height: 1.6;
 }
@@ -362,7 +362,7 @@ a:focus-visible, [tabindex]:focus-visible, tr:focus-visible {
 }
 .testimonial p {
   margin: 8px 0 16px;
-  color: #e4dfd4;
+  color: #dde1e7;
   font-size: 15px;
   line-height: 1.6;
 }
@@ -373,7 +373,7 @@ a:focus-visible, [tabindex]:focus-visible, tr:focus-visible {
 }
 .testimonial-author strong, .testimonial-author small { display: block; }
 .testimonial-author strong { color: #ffffff; font-size: 14px; }
-.testimonial-author small { margin-top: 2px; color: #a8a295; font-size: 13px; }
+.testimonial-author small { margin-top: 2px; color: #9aa1ac; font-size: 13px; }
 .testimonial-author > svg { margin-left: auto; color: var(--brand-highlight); }
 
 /* Avatars */
@@ -398,7 +398,7 @@ a:focus-visible, [tabindex]:focus-visible, tr:focus-visible {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  color: #a8a295;
+  color: #9aa1ac;
   font-size: 14px;
 }
 .login-hero-footer strong {
@@ -1962,7 +1962,7 @@ tbody tr:hover { background: var(--surface-muted); }
   font-weight: 600;
   letter-spacing: -0.4px;
 }
-.hub-hero-banner p { margin: 0; color: #cfc9bc; font-size: 15px; }
+.hub-hero-banner p { margin: 0; color: #c3c8d0; font-size: 15px; }
 .hub-user-badge {
   position: absolute;
   right: 28px;
@@ -1978,7 +1978,7 @@ tbody tr:hover { background: var(--surface-muted); }
   color: var(--brand-highlight);
 }
 .hub-user-badge strong { font-size: 15px; color: #ffffff; }
-.hub-user-badge small { grid-column: 2; font-size: 12.5px; color: #cfc9bc; }
+.hub-user-badge small { grid-column: 2; font-size: 12.5px; color: #c3c8d0; }
 
 .hub-tabs {
   display: grid;
@@ -2461,7 +2461,7 @@ tbody tr:hover { background: var(--surface-muted); }
 .client-portal-main { flex: 1; width: 100%; max-width: 920px; margin: 0 auto; padding: 32px 20px 40px; display: flex; flex-direction: column; gap: 18px; }
 .client-portal-center { position: relative; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
 .maintenance-screen .login-panel-inner { max-width: 440px; text-align: center; }
-.maintenance-screen .n1-brand-logo { display: flex; justify-content: center; }
+.maintenance-screen .zentry-brand-logo { display: flex; justify-content: center; }
 .maintenance-icon { display: grid; place-items: center; width: 56px; height: 56px; margin: 26px auto 0; border-radius: 50%; color: var(--gold); background: var(--gold-soft); }
 .maintenance-screen .login-panel-inner h2 { margin-top: 18px; }
 .maintenance-screen .primary-button { margin: 10px auto 0; }
@@ -2824,8 +2824,8 @@ tbody tr.empty-row:hover { background: transparent; }
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(60% 55% at 100% 0%, rgba(208, 181, 111, 0.16), transparent 70%),
-    radial-gradient(45% 40% at 0% 100%, rgba(208, 181, 111, 0.08), transparent 70%);
+    radial-gradient(60% 55% at 100% 0%, rgba(79, 143, 247, 0.16), transparent 70%),
+    radial-gradient(45% 40% at 0% 100%, rgba(79, 143, 247, 0.08), transparent 70%);
 }
 .login-hero::after, .hub-hero-banner::after {
   content: "";
@@ -3072,7 +3072,7 @@ tbody tr.empty-row:hover { background: transparent; }
 .admin-status-waiting_qr span, .admin-status-connecting span { background: var(--amber); }
 .admin-qr { display: flex; align-items: center; gap: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff; }
 .admin-qr img { flex: none; image-rendering: pixelated; }
-.admin-qr p { margin: 0; color: #2b2a27; font-size: 13.5px; line-height: 1.5; }
+.admin-qr p { margin: 0; color: #272a2f; font-size: 13.5px; line-height: 1.5; }
 .admin-address { margin: 0; font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere; }
 .admin-usage { align-items: stretch; }
 .admin-usage .admin-card-head { flex-wrap: wrap; }
@@ -3101,7 +3101,7 @@ tbody tr.empty-row:hover { background: transparent; }
 /* Login: what the portal offers (replaces the made-up testimonial) */
 .login-features { display: flex; flex-direction: column; gap: 12px; margin: 28px 0 0; padding: 0; list-style: none; }
 .login-features li { display: flex; align-items: flex-start; gap: 10px; color: rgba(255, 255, 255, 0.86); font-size: 15px; line-height: 1.45; }
-.login-features svg { flex: none; margin-top: 2px; color: var(--gold, #c9ad66); }
+.login-features svg { flex: none; margin-top: 2px; color: var(--gold, #4a8ef7); }
 
 /* ==========================================================================
  * Motion
@@ -3121,26 +3121,26 @@ tbody tr.empty-row:hover { background: transparent; }
   --motion-slow: 360ms;
 }
 /* Keyframes without "to" animate towards the element's own value (e.g. its inline width). */
-@keyframes n1-rise { from { opacity: 0; transform: translateY(8px); } }
-@keyframes n1-rise-sm { from { opacity: 0; transform: translateY(4px); } }
-@keyframes n1-fade { from { opacity: 0; } }
-@keyframes n1-fill-x { from { width: 0; } }
-@keyframes n1-fill-y { from { height: 0; } }
+@keyframes zentry-rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes zentry-rise-sm { from { opacity: 0; transform: translateY(4px); } }
+@keyframes zentry-fade { from { opacity: 0; } }
+@keyframes zentry-fill-x { from { width: 0; } }
+@keyframes zentry-fill-y { from { height: 0; } }
 
 /* Login: hero copy and features in sequence, card rises gently */
-.hero-copy > :not(.login-features) { animation: n1-rise 400ms var(--ease-out) backwards; }
+.hero-copy > :not(.login-features) { animation: zentry-rise 400ms var(--ease-out) backwards; }
 .hero-copy > :nth-child(2) { animation-delay: 60ms; }
 .hero-copy > :nth-child(3) { animation-delay: 120ms; }
-.login-features li { animation: n1-rise-sm var(--motion-slow) var(--ease-out) backwards; animation-delay: 180ms; }
+.login-features li { animation: zentry-rise-sm var(--motion-slow) var(--ease-out) backwards; animation-delay: 180ms; }
 .login-features li:nth-child(2) { animation-delay: 230ms; }
 .login-features li:nth-child(3) { animation-delay: 280ms; }
-.login-hero-footer { animation: n1-fade 400ms ease-out 200ms backwards; }
-.login-panel-inner { animation: n1-rise var(--motion-slow) var(--ease-out) backwards; }
+.login-hero-footer { animation: zentry-fade 400ms ease-out 200ms backwards; }
+.login-panel-inner { animation: zentry-rise var(--motion-slow) var(--ease-out) backwards; }
 
 /* App shell: each view fades/slides in when it opens (views mount fresh, so it replays) */
 .main-area > .page-content,
 .main-area > .client-detail-page,
-.main-area > .hub-dashboard { animation: n1-rise-sm var(--motion-base) var(--ease-out) backwards; }
+.main-area > .hub-dashboard { animation: zentry-rise-sm var(--motion-base) var(--ease-out) backwards; }
 
 /* Sidebar: the gold active marker and colors ease between items */
 .nav-item { transition: color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-base) var(--ease-out); }
@@ -3150,7 +3150,7 @@ tbody tr.empty-row:hover { background: transparent; }
 .kpi-grid > .kpi-card,
 .hub-metrics > .hub-metric,
 .control-metrics > .hub-metric,
-.ranking-grid > .ranking-card { animation: n1-rise var(--motion-slow) var(--ease-out) backwards; }
+.ranking-grid > .ranking-card { animation: zentry-rise var(--motion-slow) var(--ease-out) backwards; }
 .kpi-grid > :nth-child(2), .hub-metrics > :nth-child(2), .control-metrics > :nth-child(2), .ranking-grid > :nth-child(2) { animation-delay: 50ms; }
 .kpi-grid > :nth-child(3), .hub-metrics > :nth-child(3), .control-metrics > :nth-child(3), .ranking-grid > :nth-child(3) { animation-delay: 100ms; }
 .kpi-grid > :nth-child(4), .hub-metrics > :nth-child(4), .control-metrics > :nth-child(4), .ranking-grid > :nth-child(4) { animation-delay: 150ms; }
@@ -3165,7 +3165,7 @@ tbody tr.empty-row:hover { background: transparent; }
 .kpi-card:active, .ranking-card:active { transform: translateY(0); }
 
 /* Bars and progress fills grow from zero, then ease to new values */
-.hub-evolution-bars span { animation: n1-fill-y 400ms var(--ease-out) backwards; transition: height .3s var(--ease-out); }
+.hub-evolution-bars span { animation: zentry-fill-y 400ms var(--ease-out) backwards; transition: height .3s var(--ease-out); }
 .hub-evolution-month:nth-child(2) .hub-evolution-bars span { animation-delay: 20ms; }
 .hub-evolution-month:nth-child(3) .hub-evolution-bars span { animation-delay: 40ms; }
 .hub-evolution-month:nth-child(4) .hub-evolution-bars span { animation-delay: 60ms; }
@@ -3177,14 +3177,14 @@ tbody tr.empty-row:hover { background: transparent; }
 .hub-evolution-month:nth-child(10) .hub-evolution-bars span { animation-delay: 180ms; }
 .hub-evolution-month:nth-child(11) .hub-evolution-bars span { animation-delay: 200ms; }
 .hub-evolution-month:nth-child(12) .hub-evolution-bars span { animation-delay: 220ms; }
-.hub-tooltip { animation: n1-fade 120ms ease-out; }
+.hub-tooltip { animation: zentry-fade 120ms ease-out; }
 .progress-bar-fill, .progress-bar span, .progress-track span, .distribution-row i, .sector-overview i, .ranking-card > i {
-  animation: n1-fill-x 400ms var(--ease-out) 120ms backwards;
+  animation: zentry-fill-x 400ms var(--ease-out) 120ms backwards;
   transition: width .3s var(--ease-out);
 }
 
 /* Heatmap cells fade in row by row and ease between shades when filters change */
-.heatmap i { animation: n1-fade 320ms ease-out backwards; transition: background-color .25s ease; }
+.heatmap i { animation: zentry-fade 320ms ease-out backwards; transition: background-color .25s ease; }
 .heatmap > :nth-child(3) i { animation-delay: 30ms; }
 .heatmap > :nth-child(4) i { animation-delay: 60ms; }
 .heatmap > :nth-child(5) i { animation-delay: 90ms; }
@@ -3193,8 +3193,8 @@ tbody tr.empty-row:hover { background: transparent; }
 .heatmap > :nth-child(8) i { animation-delay: 180ms; }
 
 /* Chat: messages that arrive (and the one being sent) slide in; assistant options follow in sequence */
-.chat-message-new, .chat-message-pending, .client-bubble-new, .client-bubble-pending { animation: n1-rise-sm 260ms var(--ease-out) backwards; }
-.client-bot-options button { animation: n1-rise-sm var(--motion-base) var(--ease-out) 120ms backwards; }
+.chat-message-new, .chat-message-pending, .client-bubble-new, .client-bubble-pending { animation: zentry-rise-sm 260ms var(--ease-out) backwards; }
+.client-bot-options button { animation: zentry-rise-sm var(--motion-base) var(--ease-out) 120ms backwards; }
 .client-bot-options button:nth-child(2) { animation-delay: 165ms; }
 .client-bot-options button:nth-child(3) { animation-delay: 210ms; }
 .client-bot-options button:nth-child(4) { animation-delay: 255ms; }
@@ -3202,16 +3202,16 @@ tbody tr.empty-row:hover { background: transparent; }
 
 /* Dashboard donut: the colored ring sweeps around its track, like a gauge filling up */
 @property --donut-sweep { syntax: '<angle>'; inherits: false; initial-value: 360deg; }
-@keyframes n1-donut-sweep { from { --donut-sweep: 0deg; } }
+@keyframes zentry-donut-sweep { from { --donut-sweep: 0deg; } }
 .donut::before {
   -webkit-mask: conic-gradient(#000 var(--donut-sweep), transparent 0);
   mask: conic-gradient(#000 var(--donut-sweep), transparent 0);
-  animation: n1-donut-sweep 900ms var(--ease-out) 150ms backwards;
+  animation: zentry-donut-sweep 900ms var(--ease-out) 150ms backwards;
 }
 
 /* Lists come in one item after another */
 .deadline-row, .client-doc-list li, .client-history li, .admin-usage-top li, .activity-item {
-  animation: n1-rise-sm var(--motion-slow) var(--ease-out) backwards;
+  animation: zentry-rise-sm var(--motion-slow) var(--ease-out) backwards;
 }
 :is(.deadline-row, .client-doc-list li, .client-history li, .admin-usage-top li, .activity-item):nth-child(2) { animation-delay: 45ms; }
 :is(.deadline-row, .client-doc-list li, .client-history li, .admin-usage-top li, .activity-item):nth-child(3) { animation-delay: 90ms; }
@@ -3220,15 +3220,15 @@ tbody tr.empty-row:hover { background: transparent; }
 :is(.deadline-row, .client-doc-list li, .client-history li, .admin-usage-top li, .activity-item):nth-child(6) { animation-delay: 215ms; }
 :is(.deadline-row, .client-doc-list li, .client-history li, .admin-usage-top li, .activity-item):nth-child(n+7) { animation-delay: 250ms; }
 /* Each point of the client's timeline pops in with its entry */
-@keyframes n1-pop { from { transform: scale(0); } }
-.client-history li::before { animation: n1-pop 300ms var(--ease-out) backwards; animation-delay: inherit; }
+@keyframes zentry-pop { from { transform: scale(0); } }
+.client-history li::before { animation: zentry-pop 300ms var(--ease-out) backwards; animation-delay: inherit; }
 
 /*
  * Panels further down the page rise in as they scroll into view, instead of animating off-screen
  * on load (startScrollReveal in lib/motion.ts marks them). Panels already on screen stay put.
  */
-.n1-reveal-wait { opacity: 0; transform: translateY(14px); }
-.n1-reveal-in { animation: n1-rise 480ms var(--ease-out) backwards; }
+.zentry-reveal-wait { opacity: 0; transform: translateY(14px); }
+.zentry-reveal-in { animation: zentry-rise 480ms var(--ease-out) backwards; }
 
 /*
  * Loading the portal (components/BrandLoader.tsx): the logo sits exactly where the opening screen
@@ -3240,8 +3240,8 @@ tbody tr.empty-row:hover { background: transparent; }
 .brand-loader-bar {
   position: absolute; top: calc(50% + min(260px, 62vw) * .36); left: 50%;
   width: min(120px, 30vw); height: 2px; overflow: hidden; border-radius: 2px;
-  background: rgba(201, 173, 102, .16); transform: translateX(-50%);
-  animation: n1-fade 400ms ease-out 400ms backwards;
+  background: rgba(74, 142, 247, .16); transform: translateX(-50%);
+  animation: zentry-fade 400ms ease-out 400ms backwards;
 }
 .brand-loader-bar i { position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--brand-highlight), transparent); animation: brand-loader-run 1.1s ease-in-out infinite; }
 @keyframes brand-loader-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
@@ -3252,7 +3252,7 @@ tbody tr.empty-row:hover { background: transparent; }
 
 /* Client portal: cards rise in on open (and when a mobile tab is shown again) */
 .client-portal-side > .client-portal-card,
-.client-portal-layout > .client-portal-chat { animation: n1-rise var(--motion-slow) var(--ease-out) backwards; }
+.client-portal-layout > .client-portal-chat { animation: zentry-rise var(--motion-slow) var(--ease-out) backwards; }
 .client-portal-side > :nth-child(2) { animation-delay: 60ms; }
 .client-portal-side > :nth-child(n+3) { animation-delay: 110ms; }
 .client-portal-layout > .client-portal-chat { animation-delay: 80ms; }

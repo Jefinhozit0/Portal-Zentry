@@ -1,6 +1,6 @@
 -- =============================================================================
--- N1 Portal - Supabase Schema
--- Execute este SQL no Supabase SQL Editor (https://supabase.com/dashboard/project/dnxianxtbxyqhvaliinj/sql)
+-- Portal Zentry - Supabase Schema
+-- Execute este SQL no Supabase SQL Editor (Supabase > SQL Editor do projeto da Zentry)
 -- =============================================================================
 
 -- ----------------------------------------
