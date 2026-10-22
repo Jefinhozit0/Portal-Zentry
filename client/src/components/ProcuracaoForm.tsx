@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { EMPRESA } from "@shared/empresa";
-import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatCPF, localEData, problemasProcuracao } from "@shared/procuracao";
+import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatCPF, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
 import { Button } from "@/components/ui/button";
 import { downloadPdf } from "@/lib/downloadPdf";
 import { trpc } from "@/lib/trpc";
@@ -19,7 +19,7 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
   function chooseClient(name: string) {
     setClientName(name);
     const match = clients.find((option) => option.name.trim().toLowerCase() === name.trim().toLowerCase());
-    if (match) setDados((current) => ({ ...current, nome: match.name.toUpperCase(), cpf: match.cpf ? formatCPF(match.cpf) : current.cpf, email: match.email ?? current.email }));
+    if (match) setDados((current) => ({ ...current, nome: nomeProprio(match.name), cpf: match.cpf ? formatCPF(match.cpf) : current.cpf, email: match.email ?? current.email }));
   }
 
   function reset() {
@@ -71,7 +71,7 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
     <div className="laudo-preview procuracao-preview" aria-live="polite">
       {problems.length
         ? <p>{problems[0]}</p>
-        : <p>Outorgante <strong>{dados.nome.toUpperCase()}</strong> · outorgado {EMPRESA.nome || EMPRESA.nomeCurto} · {localEData(dados)}</p>}
+        : <p>Outorgante <strong>{nomeProprio(dados.nome)}</strong> · outorgado {EMPRESA.nome || EMPRESA.nomeCurto} · {localEData(dados)}</p>}
     </div>
 
     {chosen
