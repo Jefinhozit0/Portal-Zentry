@@ -115,6 +115,73 @@ describe("extrairContrato (Santander CDC Veículos)", () => {
   });
 });
 
+// Page 1 of a Stellantis (Fiat) orçamento CDC Veículos, personal data replaced. The bank's name wraps,
+// its CNPJ is alone below it, and the rate cells sit a little above their label.
+const STELLANTIS_CDC = [
+  line(820, "[110]STELLANTIS FINANCIAMENTOS SOCIEDADE DE CRÉDITO, FINANCIAMENTO E"),
+  line(809, "[110]INVESTIMENTO S.A."),
+  line(798, "[250]CNPJ 03.502.961/0001-92"),
+  line(787, "[160]ORÇAMENTO DE OPERAÇÃO DE CRÉDITO DIRETO AO CONSUMIDOR (CDC) - VEÍCULOS"),
+  line(776, "[430]ORÇAMENTO N° 210937397"),
+  line(731, "[30]A.1 [62]Nome do(a) consumidor(a): JOSÉ EXEMPLO [330]CPF/CNPJ do(a) solicitante: 000.000.000-00"),
+  line(720, "[62]Endereço e telefone de contato: RUA EXEMPLO/ Nº: 185/ CEP: 52291150/ TEL: 8199999-0000"),
+  line(709, "[30]A.2 [62]Veículo: Marca: Fiat [226]Ano/Modelo: 2027 [340]Combustível: Flex Alcool + Gasolina"),
+  line(698, "[62]Modelo: CRONOS - 0P - - DRIVE 1.3 8V Flex Aut. [340]Cor: PRATA"),
+  line(668, "[30]B.1 [62]Valor do veículo à vista [470]R$124.000,00"),
+  line(536, "[30]B.8 [62]Seguro(s) – financiados [330][ ]sim [ X ]não [470]R$0,00 [530]0,00%"),
+  line(525, "[30]B.8.1 [62]Seguro: | Seguradora: CNPJ:"),
+  line(492, "[30]B.11 [62]Registro contrato - Cartório (cf. legislação estadual) - financiadas: [330][ X ]sim [ ]não [470]R$324,79 [530]0,29%"),
+  line(481, "[30]B.12 [62]Registro contrato - órgão de trânsito ( Res. 689 CONTRAN) - [330][ ]sim [ X ]não [470]R$0,00 [530]0,00%"),
+  line(448, "[30]C.1 [62]Valor da entrada [470]R$15.000,00"),
+  line(437, "[30]C.2 [62]Valor Líquido Liberado (B.1+B.2+B.3+B.4+B.5+B.6 +B.7+ B.9 + B.10-C.1) [470]R$109.000,00 [530]95,69%"),
+  // The amount cells of D.1 and F.7 sit a few points off their labels, as in the real PDF.
+  line(405, "[38]Opção pela contratação da Tarifa de cadastro(³):"),
+  line(400, "[10]D.1 [491]R$1.199,00 1,05%"),
+  line(393, "[38]Financiado[X]"),
+  line(382, "[30]D.2 [62]Tarifa de avaliação do veículo usado(garantia da operação) Isenta: [X]sim []não À [470]R$0,00 [530]0,00%"),
+  line(360, "[30]D.3 [62]Total de tarifas a serem financiadas [470]R$1.199,00 [530]1,05%"),
+  line(338, "[30]E.1 [62]Valor total a ser financiado sem impostos (B.13 - C.1 + D.3) [470]R$110.523,79"),
+  line(327, "[30]E.2 [62]IOF - financiado: [330][ X ]sim [ ]não [410]Alíquota: [470]R$3.384,92 [530]2,97%"),
+  line(316, "[30]E.3 [62]IOF -aliquota adicional (Decreto 12.499/2025) - [330][ X ]sim [ ]não [410]0,38% (única)"),
+  line(305, "[30]E.4 [62]Total de impostos a serem financiados [470]R$3.384,92 [530]2,97%"),
+  line(283, "[30]F.1 [62]Data do 1° Vencimento [480]23/07/2026"),
+  line(272, "[30]F.2 [62]Número de parcelas mensais comuns [500]60"),
+  line(261, "[30]F.3 [62]Valor de cada parcela mensal comum [470]R$ 2.980,17"),
+  line(250, "[30]F.4 [62]Número de parcelas mensais diferenciadas [500]0"),
+  line(244, "[220]mensal % a.m.: 1,62% [380]anual % a.a.: 21,23%"),
+  line(239, "[30]F.6 [62]Taxa de juros mensal e anual"),
+  line(233, "[479]R$113.908,71 100,00"),
+  line(228, "[10]F.7 [38]Valor Total Financiado (Com Impostos) (E.1 + E.4)"),
+  line(150, "[62]Prazo de validade do orçamento (¹):3 [200]Local: RECIFE [400]Data: 23/06/2026"),
+];
+
+describe("extrairContrato (Stellantis CDC Veículos)", () => {
+  const leitura = extrairContrato(STELLANTIS_CDC);
+  const { dados } = leitura;
+
+  it("reads the client, the bank on two lines and its CNPJ on the line below", () => {
+    expect(leitura).toMatchObject({ cpf: "000.000.000-00", cnpjInstituicao: "03.502.961/0001-92", modalidade: "financiamento", endereco: "RUA EXEMPLO/ Nº: 185/ CEP: 52291150" });
+    expect(dados).toMatchObject({
+      contratante: "JOSÉ EXEMPLO",
+      instituicao: "STELLANTIS FINANCIAMENTOS SOCIEDADE DE CRÉDITO, FINANCIAMENTO E INVESTIMENTO S.A.",
+      contrato: "210937397",
+      garantia: "Fiat CRONOS - 0P - - DRIVE 1.3 8V Flex Aut. 2027",
+    });
+  });
+
+  it("takes the interest rate, not the 0,38% of the IOF", () => {
+    expect(dados).toMatchObject({ taxaMensal: 1.62, taxaAnual: 21.23 });
+  });
+
+  it("reads the rest of the orçamento", () => {
+    expect(dados).toMatchObject({
+      valorSolicitado: 109000, valorFinanciado: 113908.71, parcelas: 60, valorParcela: 2980.17,
+      primeiroVencimento: "23/07/2026", dataContrato: "23/06/2026", iof: 3384.92,
+    });
+    expect(dados.encargos).toEqual({ seguros: null, cadastro: 1199, registro: 324.79, avaliacao: null });
+  });
+});
+
 describe("extrairContrato", () => {
   const { dados } = extrairContrato(SIM_CCB);
 

@@ -54,6 +54,14 @@ function amountFor(lines: Line[], patterns: RegExp[], skip?: RegExp) {
       if (!pattern.test(line.text) || (skip && skip.test(line.text))) continue;
       const values = money(line.text.slice(line.text.search(pattern)));
       if (values.length) return values[0];
+      // Stellantis prints the amount cell a few points off its label ("Tarifa de cadastro" at 305,
+      // "D.1 R$1.199,00" at 299): the closest line around it that is only that amount, maybe after the item code.
+      const beside = lines
+        .filter((other) => other !== line && other.page === line.page && Math.abs(other.y - line.y) < 8 && /^(?:[A-Z]\.\d+(?:\.\d+)?\s+)?R\$/.test(other.text))
+        .sort((a, b) => Math.abs(a.y - line.y) - Math.abs(b.y - line.y))
+        .map((other) => money(other.text)[0])
+        .find((value) => value !== undefined);
+      if (beside !== undefined) return beside;
     }
   }
   return null;
@@ -91,6 +99,9 @@ function contractDate(lines: Line[]) {
   const issued = find(lines, /data\s+(?:de\s+)?(?:emiss[ãa]o|contrata[çc][ãa]o|libera[çc][ãa]o)/i);
   const written = issued?.text.match(/(\d{2}\/\d{2}\/\d{4})/);
   if (written) return written[1];
+  // Stellantis: "Local: RECIFE Data: 23/06/2026", next to the signature.
+  const dated = lines.map((line) => line.text.match(/\bData\s*:\s*(\d{2}\/\d{2}\/\d{4})/i)?.[1]).find(Boolean);
+  if (dated) return dated;
   for (const line of lines) {
     const match = line.text.match(/(\d{1,2}) de ([A-Za-zçÇ]+) de (\d{4})/);
     const month = match ? mesNumero(match[2]) : 0;
@@ -123,9 +134,32 @@ function clientAddress(lines: Line[]) {
   if (!line) return "";
   return line.text.replace(label, "")
     .replace(/\s*-?\s*\(\d{2}\)[\s\d-]*.*$/, "")
+    // Stellantis: "RUA DIONISIO CERQUEIRA/ Nº: 185/ CEP: 52291150/ TEL: 8199847-7274".
+    .replace(/[\s/,-]*\b(?:TEL|FONE|TELEFONE)\b.*$/i, "")
     .replace(EMAIL, "")
     .replace(/[\s,-]+$/, "")
     .trim();
+}
+
+const BANK = /(BANCO|CR[ÉE]DITO|FINANCEIRA|FINANCIAMENTO)/i;
+const SA = /\bS\.?\s?\/?A\b/i;
+
+/**
+ * The line with the bank's legal name ("… S.A."). A long name can wrap in the title (Stellantis:
+ * "STELLANTIS FINANCIAMENTOS SOCIEDADE DE CRÉDITO, FINANCIAMENTO E" / "INVESTIMENTO S.A."): then
+ * the two lines are joined, and index points at the second one.
+ */
+function bankLine(lines: Line[]): { text: string; index: number } {
+  for (let index = 0; index < lines.length; index++) {
+    const text = lines[index].text;
+    if (!BANK.test(text)) continue;
+    if (SA.test(text)) return { text, index };
+    const next = lines[index + 1];
+    if (next && next.page === lines[index].page && /^[^:]{0,40}\bS\.?\s?\/?A\.?$/i.test(next.text.replace(/\s*-?\s*CNPJ.*$/i, "").trim())) {
+      return { text: `${text} ${next.text}`, index: index + 1 };
+    }
+  }
+  return { text: "", index: -1 };
 }
 
 export async function lerContrato(bytes: Uint8Array): Promise<LeituraContrato> {
@@ -136,16 +170,17 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
   const dados = emptyLaudo();
   if (lines.length === 0) return { dados, cpf: "", cnpjInstituicao: "", modalidade: null, email: "", endereco: "", encontrados: [] };
 
-  dados.contrato = lines.map((line) => line.text.match(/(?:OPERA[ÇC][AÃ]O|CONTRATO|C[ÉE]DULA|PROPOSTA)\s*(?:N[º°o.]*|n[úu]mero)\s*:?\s*(\d[\d./-]{3,})/i)?.[1]).find(Boolean) ?? "";
-  dados.instituicao = (find(lines, /(BANCO|CR[ÉE]DITO|FINANCEIRA|FINANCIAMENTO)[^]*\bS\.?\s?\/?A\b/i)?.text ?? "")
-    .replace(/\s*-?\s*CNPJ.*$/i, "").replace(/\s+/g, " ").trim();
+  dados.contrato = lines.map((line) => line.text.match(/(?:OPERA[ÇC][AÃ]O|CONTRATO|C[ÉE]DULA|PROPOSTA|OR[ÇC]AMENTO)\s*(?:N[º°o.]*|n[úu]mero)\s*:?\s*(\d[\d./-]{3,})/i)?.[1]).find(Boolean) ?? "";
+  dados.instituicao = bankLine(lines).text.replace(/\s*-?\s*CNPJ.*$/i, "").replace(/\s+/g, " ").trim();
   // The colon matters: "Cliente" alone shows up in clauses ("Direitos e Deveres do Cliente").
-  dados.contratante = textAfter(lines, /^(?:Nome(?:\s*\/\s*Raz[ãa]o Social)?\s+do\s+(?:Cliente|Emitente|Consumidor|Devedor)|Emitente|Cliente|Contratante)\s*:/i, /^(CPF|RG)\b/i);
+  // Stellantis: "A.1 Nome do(a) consumidor(a): FLAVIO FERREIRA".
+  dados.contratante = textAfter(lines, /^(?:[A-Z]\.\d+\s+)?(?:Nome(?:\s*\/\s*Raz[ãa]o Social)?\s+do(?:\(a\))?\s+(?:Cliente|Emitente|Consumidor|Devedor)(?:\(a\))?|Emitente|Cliente|Contratante)\s*:/i, /^(CPF|RG)\b/i);
 
   // SIM: "Veículo (Marca): TOYOTA … Ano-modelo: 2017/2018 … Modelo: COROLLA". Santander: "Veículo: Marca: BAJAJ … Modelo: DOMINAR 250", "Ano/Modelo: 2025".
   const marca = textAfter(lines, /^(?:Ve[íi]culo\s*(?:\(Marca\)|:\s*Marca)|Marca)\s*:?/i, /^(Ano|Modelo)/i);
-  const modelo = textAfter(lines, /^Modelo\s*:?/i);
-  const ano = textAfter(lines, /^Ano\s*[-/]?\s*modelo\s*:?/i, /^(Modelo|Cor)\b/i);
+  // Stellantis puts "Cor: PRATA" beside the model and "Combustível: …" beside the year.
+  const modelo = textAfter(lines, /^Modelo\s*:?/i, /^(Cor|Combust[íi]vel)\b/i);
+  const ano = textAfter(lines, /^Ano\s*[-/]?\s*modelo\s*:?/i, /^(Modelo|Cor|Combust[íi]vel)\b/i);
   dados.garantia = [marca, modelo, ano].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 
   dados.valorSolicitado = amountFor(lines, [/Valor Solicitado/i, /Valor L[íi]quido Liberado/i, /Valor (?:l[íi]quido )?(?:do )?(?:cr[ée]dito|empr[ée]stimo) liberado/i, /Valor liberado/i, /Valor (?:l[íi]quido )?do cr[ée]dito/i]) ?? 0;
@@ -165,7 +200,12 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
 
   const rateIndex = lines.findIndex((line) => /taxa\s+de\s+juros/i.test(line.text) && !/mora/i.test(line.text));
   if (rateIndex >= 0) {
-    const window = lines.slice(rateIndex, rateIndex + 3);
+    // The label's line and the next two, plus any line a few points around it (Stellantis prints the
+    // "% a.m.: 1,62%" cells of a table row slightly above the label). IOF lines never count: their 0,38% is a tax.
+    const rateLine = lines[rateIndex];
+    const window = lines
+      .filter((line, index) => (index >= rateIndex && index < rateIndex + 3) || (line.page === rateLine.page && Math.abs(line.y - rateLine.y) < 10))
+      .filter((line) => !/\bIOF\b/i.test(line.text));
     // Labeled ("diária: % a.d.: 0,07% mensal: % a.m.: 2,00% anual: % a.a.: 26,82%") wins over position, so the daily rate is never taken for the monthly one.
     const joined = window.map((line) => line.text).join(" ");
     const labeled = (unit: string) => joined.match(new RegExp(`a\\.?\\s?${unit}\\.?\\s*:?\\s*(\\d{1,3},\\d{1,4})`, "i"))?.[1];
@@ -197,8 +237,12 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
   const encontrados = Object.entries({ ...dados, ...encargos })
     .filter(([key, value]) => key !== "encargos" && key !== "objeto" && key !== "jurosMora" && value !== "" && value !== 0 && value !== null)
     .map(([key]) => key);
-  const cpf = lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "";
-  const cnpjInstituicao = find(lines, /(BANCO|CR[ÉE]DITO|FINANCEIRA|FINANCIAMENTO)[^]*\bS\.?\s?\/?A\b/i)?.text.match(/CNPJ:?\s*(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/i)?.[1] ?? "";
+  // Stellantis: "CPF/CNPJ do(a) solicitante: 859.107.164-68".
+  const cpf = lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?(?:\s+do(?:\(a\))?\s+[a-z()]+)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "";
+  // The bank's CNPJ is on its line, or alone on the line right below it (Stellantis).
+  const bank = bankLine(lines);
+  const cnpjOf = (text?: string) => text?.match(/CNPJ:?\s*(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/i)?.[1];
+  const cnpjInstituicao = cnpjOf(bank.text) ?? (bank.index >= 0 ? cnpjOf(lines[bank.index + 1]?.text) : undefined) ?? "";
   // The title sits in the first lines of page 1 ("CÉDULA DE CRÉDITO BANCÁRIO - CRÉDITO PESSOAL…", "…CRÉDITO DIRETO AO CONSUMIDOR (CDC) – VEÍCULOS").
   const modalidade = modalidadeDoTitulo(lines.filter((line) => line.page === 1).slice(0, 8).map((line) => line.text).join(" "));
   return { dados, cpf, cnpjInstituicao, modalidade, email: clientEmail(lines), endereco: clientAddress(lines), encontrados };
