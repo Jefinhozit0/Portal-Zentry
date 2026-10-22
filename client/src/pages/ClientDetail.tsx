@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, FileText, Phone, Mail, Upload, Trash2, Sparkles, AlertTriangle, ChevronDown, Clock, Plus, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, FileText, Phone, Mail, Upload, Trash2, Sparkles, AlertTriangle, ChevronDown, Clock, Plus, Download, RefreshCw, FileSpreadsheet } from "lucide-react";
+import LaudoDialog from "@/components/LaudoDialog";
 import { MAX_DOCUMENT_BYTES, OLD_SYSTEM_TAG, PROCESS_STATUSES, caseSummary, formatFileSize } from "@shared/processo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,8 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
     onError: (error) => toast.error(error.message),
   });
   const [documentToDelete, setDocumentToDelete] = useState<{ id: number; nome: string } | null>(null);
+  /** Open with null for a laudo typed by hand (or from a PDF picked in the dialog), with a document to read that contract. */
+  const [laudo, setLaudo] = useState<{ documento: { id: number; nome: string } | null } | null>(null);
 
   const reenviarAcesso = trpc.portal.reenviarAcesso.useMutation({
     onSuccess: (result) => showAccessResult(result, "Novo link gerado (o anterior deixou de valer)."),
@@ -416,10 +419,16 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
         <section className="documents-section">
           <div className="section-header">
             <h2>Documentos</h2>
-            <Button size="sm" onClick={handleUploadDocument} disabled={uploading > 0 || client.id === undefined} className="upload-button">
-              <Upload size={16} />
-              {uploading > 0 ? "Enviando..." : "Anexar documentos"}
-            </Button>
+            <div className="section-header-actions">
+              <Button size="sm" variant="outline" onClick={() => setLaudo({ documento: null })} disabled={client.id === undefined}>
+                <FileSpreadsheet size={16} />
+                Gerar laudo
+              </Button>
+              <Button size="sm" onClick={handleUploadDocument} disabled={uploading > 0 || client.id === undefined} className="upload-button">
+                <Upload size={16} />
+                {uploading > 0 ? "Enviando..." : "Anexar documentos"}
+              </Button>
+            </div>
           </div>
           <div className="documents-list">
             {detalhe.isLoading && <p className="detail-empty">Carregando documentos...</p>}
@@ -440,6 +449,16 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
                   </div>
                   {doc.descricao && <p className="document-description">{doc.descricao}</p>}
                 </div>
+                {(doc.tipo === "application/pdf" || /\.pdf$/i.test(doc.nome)) && !/^Laudo - /.test(doc.nome) && <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLaudo({ documento: { id: doc.id, nome: doc.nome } })}
+                  className="delete-button"
+                  aria-label={`Gerar laudo a partir de ${doc.nome}`}
+                  title="Gerar laudo a partir deste contrato"
+                >
+                  <FileSpreadsheet size={16} />
+                </Button>}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -465,6 +484,14 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
             ))}
           </div>
         </section>
+
+        {client.id !== undefined && <LaudoDialog
+          open={laudo !== null}
+          onOpenChange={(open) => !open && setLaudo(null)}
+          client={{ id: client.id, name: client.name }}
+          documento={laudo?.documento}
+          onAttached={() => detalhe.refetch()}
+        />}
 
         <AlertDialog open={documentToDelete !== null} onOpenChange={(open) => !open && !apagarDocumento.isPending && setDocumentToDelete(null)}>
           <AlertDialogContent>

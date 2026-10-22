@@ -2765,11 +2765,11 @@ a.primary-button { text-decoration: none; }
 
 /* Termos */
 .terms-funnel { display: flex; flex-direction: column; gap: 16px; padding: 18px 20px 6px; }
-.terms-weeks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); align-items: end; gap: 8px; height: 190px; padding: 18px 20px 16px; }
-.terms-weeks > div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; min-width: 0; }
-.terms-weeks b { color: var(--text); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.terms-weeks span { width: 100%; max-width: 30px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--gold); }
-.terms-weeks small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.terms-days { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); align-items: end; gap: 4px; height: 190px; padding: 18px 20px 16px; }
+.terms-days > div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; min-width: 0; }
+.terms-days b { color: var(--text); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.terms-days span { width: 100%; max-width: 30px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--gold); }
+.terms-days small { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .terms-actions { margin-top: 16px; }
 .terms-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 12.5px; }
 .terms-resend { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; white-space: nowrap; }
@@ -3350,3 +3350,56 @@ tbody tr.empty-row:hover { background: transparent; }
   .hub-toolbar select { max-width: none; }
 }
 
+
+/* ── Laudo (parecer técnico) ── */
+.section-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.laudo-dialog { max-width: 720px; }
+.laudo-source { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px; border: 1px dashed var(--border-strong); border-radius: 10px; background: var(--surface-muted); }
+.laudo-source small { color: var(--text-soft); font-size: 12.5px; }
+.laudo-dialog form > .new-sale-grid { margin: 18px 0 8px; }
+.laudo-encargos { margin: 10px 0 0; padding: 12px 14px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.laudo-encargos legend { padding: 0 6px; color: var(--text); font-size: 13.5px; font-weight: 600; }
+.laudo-encargos legend small { color: var(--muted); font-weight: 500; }
+.laudo-preview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0 8px; padding: 14px; border-radius: 10px; background: var(--gold-soft); }
+.laudo-preview div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.laudo-preview span { color: var(--text-soft); font-size: 11.5px; }
+.laudo-preview strong { color: var(--text); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.laudo-preview .laudo-total { color: var(--gold-text); font-size: 15px; }
+.laudo-preview p { grid-column: 1 / -1; margin: 0; color: var(--text-soft); font-size: 13px; }
+.laudo-warning { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0; color: var(--yellow, #a16207); font-size: 12.5px; }
+.laudo-warning svg { flex: none; margin-top: 2px; }
+.laudo-attach { display: flex; align-items: center; gap: 8px; margin: 14px 0 4px; color: var(--text-soft); font-size: 13px; cursor: pointer; }
+@media (max-width: 640px) {
+  .laudo-source { flex-direction: column; align-items: flex-start; }
+  .laudo-preview { grid-template-columns: 1fr 1fr; }
+}
+.laudos-page { display: grid; gap: 20px; }
+.laudo-form-page { padding: 4px 20px 20px; }
+.laudo-form-page .laudo-source { margin-top: 4px; }
+.laudo-form-page > .new-sale-grid { margin: 18px 0 8px; }
+.laudo-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.laudo-hint { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; }
+.laudos-list { display: grid; padding: 0 20px 16px; }
+.laudos-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.laudos-item:first-child { border-top: 0; }
+.laudos-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 9px; color: var(--gold-text); background: var(--gold-soft); }
+.laudos-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.laudos-info strong { overflow: hidden; color: var(--text); font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+.laudos-info small { color: var(--muted); font-size: 12px; }
+.laudos-client { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  .laudo-form-page { padding: 4px 16px 16px; }
+  .laudos-list { padding: 0 16px 12px; }
+  .laudos-item { flex-wrap: wrap; }
+  .laudos-client { max-width: 100%; order: 3; }
+}
+.laudos-heading { flex-wrap: wrap; gap: 12px; }
+.laudos-heading .filter-buttons button { display: inline-flex; align-items: center; gap: 6px; }
+.procuracao-preview { grid-template-columns: 1fr; }
+.procuracao-preview p strong { color: var(--text); font-size: inherit; }
+.laudo-place { margin-top: 14px; }
+.laudo-form select { width: 100%; margin-top: 6px; }
+.laudo-ok { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; color: var(--green, #15803d); font-size: 12.5px; }
+.laudo-ok svg, .laudo-encargos .laudo-warning svg { flex: none; margin-top: 2px; }
+.laudo-encargos .laudo-warning { margin-top: 10px; }
+.laudos-heading .filter-buttons { flex-wrap: wrap; }

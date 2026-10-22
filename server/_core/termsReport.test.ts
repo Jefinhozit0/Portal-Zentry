@@ -49,8 +49,9 @@ describe("buildTermsReport", () => {
     expect(ana.acceptedIp).toBe("1.2.3.4");
     expect(ana.acceptedDevice).toBe("iPhone · Safari");
     expect(report.clients.at(-1)?.id).toBe(1);
-    expect(report.weeks).toHaveLength(8);
-    expect(report.weeks.reduce((sum, week) => sum + week.accepted, 0)).toBe(1);
+    expect(report.days).toHaveLength(14);
+    expect(report.days.reduce((sum, day) => sum + day.accepted, 0)).toBe(1);
+    expect(report.days[14 - 1 - 9].accepted).toBe(1);
   });
 
   it("keeps counting acceptances of a version that is still valid (v1, before the app section)", () => {

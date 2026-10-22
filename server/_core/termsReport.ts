@@ -5,7 +5,7 @@ import { listPushDevices } from "./push";
 import { supabase } from "./supabase";
 
 const DAY = 86_400_000;
-const WEEKS = 8;
+const DAYS = 14;
 
 /** Where each client stands with the portal terms, from best to worst. */
 export type TermsSituation = "aceito" | "versao-antiga" | "sem-aceite" | "primeiro-acesso" | "link-expirado" | "sem-login";
@@ -45,11 +45,10 @@ const median = (values: number[]) => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-/** Start of the week (Monday, 00:00 in São Paulo, UTC-3) that contains the given moment. */
-function weekStart(at: number) {
+/** Start of the day (00:00 in São Paulo, UTC-3) that contains the given moment. */
+function dayStart(at: number) {
   const local = new Date(at - 3 * 3_600_000);
-  const day = (local.getUTCDay() + 6) % 7;
-  return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - day) + 3 * 3_600_000;
+  return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) + 3 * 3_600_000;
 }
 
 /** pushDevices: devices with the app notifications on, per client (see push.ts). */
@@ -100,13 +99,13 @@ export function buildTermsReport(clientes: ClienteRow[], users: User[], now = Da
     })
     .filter((hours): hours is number => hours !== null);
 
-  const thisWeek = weekStart(now);
-  const weeks = Array.from({ length: WEEKS }, (_, index) => ({ start: new Date(thisWeek - (WEEKS - 1 - index) * 7 * DAY).toISOString(), accepted: 0 }));
+  const today = dayStart(now);
+  const days = Array.from({ length: DAYS }, (_, index) => ({ start: new Date(today - (DAYS - 1 - index) * DAY).toISOString(), accepted: 0 }));
   for (const row of acceptedRows) {
     const at = time(row.acceptedAt);
     if (at === null) continue;
-    const index = WEEKS - 1 - Math.round((thisWeek - weekStart(at)) / (7 * DAY));
-    if (index >= 0 && index < WEEKS) weeks[index].accepted++;
+    const index = DAYS - 1 - Math.round((today - dayStart(at)) / DAY);
+    if (index >= 0 && index < DAYS) days[index].accepted++;
   }
 
   return {
@@ -127,7 +126,7 @@ export function buildTermsReport(clientes: ClienteRow[], users: User[], now = Da
       medianHoursToAccept: median(hoursToAccept),
       withNotifications: rows.filter((row) => row.notificationDevices > 0).length,
     },
-    weeks,
+    days,
     // Pending clients first, the oldest invitation at the top; then the ones who accepted, newest first.
     clients: rows.sort((a, b) => {
       const pa = a.situation === "aceito" ? 1 : 0, pb = b.situation === "aceito" ? 1 : 0;

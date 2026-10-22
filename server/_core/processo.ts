@@ -101,6 +101,41 @@ export async function documentDownloadUrl(documentId: number, clientId?: number)
   return signed.signedUrl;
 }
 
+/** Names the generated documents start with (laudoFileName, procuracaoFileName, notificacaoFileName, notificacaoContratoFileName, termoFileName). */
+const GENERATED_PREFIXES = ["Laudo - ", "Procuração extrajudicial - ", "Notificação extrajudicial - ", "Notificação extrajudicial com contrato - ", "Termo de prestação de serviços - "];
+
+/** Documents the system generated and attached to a client (laudos, procurações), newest first. */
+export async function listLaudos(limit = 50) {
+  const results = await Promise.all(GENERATED_PREFIXES.map((prefix) => supabase
+    .from("documentos")
+    .select("id, nome, descricao, tamanho, enviado_por, created_at, client_id, clientes(name)")
+    .ilike("nome", `${prefix}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit)));
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    console.warn("[documentos] Could not list generated documents:", failed.error.message);
+    return [];
+  }
+  const data = results.flatMap((result) => result.data ?? [])
+    .sort((a, b) => Date.parse(b.created_at as string) - Date.parse(a.created_at as string))
+    .slice(0, limit);
+  return data.map((row) => {
+    const cliente = row.clientes as { name?: string } | { name?: string }[] | null;
+    const clientName = (Array.isArray(cliente) ? cliente[0]?.name : cliente?.name) ?? null;
+    return { id: row.id as number, nome: row.nome as string, descricao: row.descricao as string | null, tamanho: row.tamanho as number, enviadoPor: row.enviado_por as string | null, createdAt: row.created_at as string, clientId: row.client_id as number, clientName };
+  });
+}
+
+/** The file itself, for the server to read (e.g. a contract the laudo is made from). */
+export async function downloadDocument(documentId: number) {
+  const { data } = await supabase.from("documentos").select("nome, caminho, tipo, client_id").eq("id", documentId).maybeSingle();
+  if (!data) throw new TRPCError({ code: "NOT_FOUND", message: "Documento não encontrado." });
+  const { data: file, error } = await supabase.storage.from(BUCKET).download(data.caminho as string);
+  if (error || !file) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível abrir o arquivo agora." });
+  return { nome: data.nome as string, tipo: (data.tipo as string | null) ?? null, clientId: data.client_id as number, bytes: new Uint8Array(await file.arrayBuffer()) };
+}
+
 export async function deleteDocument(documentId: number, author: string) {
   const { data } = await supabase.from("documentos").select("client_id, nome, caminho").eq("id", documentId).maybeSingle();
   if (!data) throw new TRPCError({ code: "NOT_FOUND", message: "Este documento já foi apagado." });
