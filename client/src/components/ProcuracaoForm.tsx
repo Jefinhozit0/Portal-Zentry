@@ -5,7 +5,6 @@ import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatCPF, lo
 import { Button } from "@/components/ui/button";
 import { downloadPdf } from "@/lib/downloadPdf";
 import { trpc } from "@/lib/trpc";
-import { TipoContratoSelect } from "./TipoContratoSelect";
 
 export type ProcuracaoClient = { id: number; name: string; cpf?: string | null; email?: string | null };
 
@@ -67,12 +66,6 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
           disabled={gerar.isPending}
         />
       </label>)}
-      <TipoContratoSelect
-        value={dados.modalidade}
-        onChange={(modalidade) => setDados((current) => ({ ...current, modalidade }))}
-        disabled={gerar.isPending}
-        label="Tipo de contrato relacionado"
-      />
     </div>
 
     <div className="laudo-preview procuracao-preview" aria-live="polite">

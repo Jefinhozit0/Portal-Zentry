@@ -153,7 +153,6 @@ const procuracaoInput = z.object({
   cep: z.string().trim().max(12),
   email: z.string().trim().max(200),
   cidade: z.string().trim().max(100),
-  modalidade: z.enum(MODALIDADES),
   data: z.string().trim().max(10),
 });
 

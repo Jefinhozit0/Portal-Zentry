@@ -1,5 +1,3 @@
-import type { Modalidade } from "./notificacao";
-
 /**
  * Procuração extrajudicial (consumidor.gov.br): the client (outorgante) gives the company (outorgado, shared/empresa.ts) powers
  * for administrative complaints. Only the client's data and the place/date change.
@@ -12,7 +10,6 @@ export type ProcuracaoDados = {
   cep: string;
   email: string;
   cidade: string;
-  modalidade: Modalidade;
   /** aaaa-mm-dd, as an <input type="date"> gives it. */
   data: string;
 };
@@ -32,7 +29,7 @@ export const PROCURACAO_CAMPOS: { key: keyof ProcuracaoDados; label: string; pla
 /** Today in São Paulo, as aaaa-mm-dd. */
 export const hojeISO = (at = new Date()) => at.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 
-export const emptyProcuracao = (): ProcuracaoDados => ({ nome: "", cpf: "", endereco: "", cep: "", email: "", cidade: "", modalidade: "financiamento", data: hojeISO() });
+export const emptyProcuracao = (): ProcuracaoDados => ({ nome: "", cpf: "", endereco: "", cep: "", email: "", cidade: "", data: hojeISO() });
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
