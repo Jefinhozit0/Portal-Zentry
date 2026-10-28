@@ -10,6 +10,7 @@ export type NotificacaoDados = {
   /** "inscrito" / "inscrita"; null keeps "inscrito(a)". */
   genero: Genero | null;
   cpf: string;
+  modalidade: Modalidade;
   /** Amount of the contract (crédito liberado). */
   valor: number;
   parcelas: number;

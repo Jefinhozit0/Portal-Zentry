@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { impliedRate } from "@shared/laudo";
 import { BANCOS_CONHECIDOS, avisoTaxa, modalidadeDoTitulo, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato, reaisPorExtenso } from "@shared/notificacao";
-import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoFileName, notificacaoFileName } from "./notificacaoPdf";
+import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoFileName, notificacaoDefinition, notificacaoFileName } from "./notificacaoPdf";
 
 const santander = BANCOS_CONHECIDOS[0];
-const dados = { nome: "Maria da Silva", cpf: "00000000000", valor: 50000, parcelas: 60, valorParcela: 1845.54, bancoNome: santander.nome, bancoCnpj: santander.cnpj, bancoEndereco: santander.endereco, cidade: "São Paulo", data: "2025-11-14" };
+const dados = { nome: "Maria da Silva", cpf: "00000000000", modalidade: "financiamento" as const, valor: 50000, parcelas: 60, valorParcela: 1845.54, bancoNome: santander.nome, bancoCnpj: santander.cnpj, bancoEndereco: santander.endereco, cidade: "São Paulo", data: "2025-11-14" };
 
 describe("notificação extrajudicial", () => {
   it("writes amounts in words like the model", () => {
@@ -43,6 +43,11 @@ describe("notificação extrajudicial", () => {
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
     expect(notificacaoFileName(dados)).toBe("Notificação extrajudicial - MARIA DA SILVA.pdf");
+  });
+
+  it("uses the selected contract type in the manual notification", () => {
+    const definition = JSON.stringify(notificacaoDefinition({ ...dados, modalidade: "empréstimo" }));
+    expect(definition).toContain("contrato de empréstimo");
   });
 });
 

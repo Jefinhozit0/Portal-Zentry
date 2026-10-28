@@ -45,6 +45,7 @@ export function procuracaoDefinition(dados: ProcuracaoDados): TDocumentDefinitio
         ["Endereço", dados.endereco.trim()],
         ["CEP", formatCEP(dados.cep)],
         ["E-mail", dados.email.trim()],
+        ["Tipo de contrato relacionado", `Contrato de ${dados.modalidade}`],
       ]),
       box("OUTORGADO", [
         ["Nome", EMPRESA.nome],

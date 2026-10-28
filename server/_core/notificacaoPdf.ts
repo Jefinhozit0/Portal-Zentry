@@ -83,7 +83,7 @@ export function notificacaoDefinition(dados: NotificacaoDados): TDocumentDefinit
       { text: formatCPF(dados.cpf), bold: true },
       ", apresentar a presente ",
       { text: "NOTIFICAÇÃO EXTRAJUDICIAL", bold: true },
-      ` destinada a obter o contrato de financiamento no valor de ${moeda(dados.valor)} (${reaisPorExtenso(dados.valor)}), a serem pagos em ${dados.parcelas} parcelas de ${moeda(dados.valorParcela)} (${reaisPorExtenso(dados.valorParcela)}).`,
+      ` destinada a obter o contrato de ${dados.modalidade} no valor de ${moeda(dados.valor)} (${reaisPorExtenso(dados.valor)}), a serem pagos em ${dados.parcelas} parcelas de ${moeda(dados.valorParcela)} (${reaisPorExtenso(dados.valorParcela)}).`,
     ]),
     body([
       `O documento solicitado deverá ser encaminhado, preferencialmente de forma eletrônica, através do seguinte endereço de ${EMAIL} `,

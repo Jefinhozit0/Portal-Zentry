@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { emptyProcuracao, formatCEP, formatCPF, hojeISO, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
-import { buildProcuracaoPdf, procuracaoFileName } from "./procuracaoPdf";
+import { buildProcuracaoPdf, procuracaoDefinition, procuracaoFileName } from "./procuracaoPdf";
 
-const dados = { nome: "Maria da Silva", cpf: "00000000000", endereco: "Rua das Flores, 123", cep: "01234567", email: "maria@exemplo.com", cidade: "São Paulo", data: "2026-10-22" };
+const dados = { nome: "Maria da Silva", cpf: "00000000000", endereco: "Rua das Flores, 123", cep: "01234567", email: "maria@exemplo.com", cidade: "São Paulo", modalidade: "financiamento" as const, data: "2026-10-22" };
 
 describe("procuração extrajudicial", () => {
   it("writes the place and date like the model", () => {
@@ -39,5 +39,9 @@ describe("procuração extrajudicial", () => {
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
     expect(procuracaoFileName(dados)).toBe("Procuração extrajudicial - Maria da Silva.pdf");
+  });
+
+  it("shows the related contract type in the document", () => {
+    expect(JSON.stringify(procuracaoDefinition({ ...dados, modalidade: "empréstimo" }))).toContain("Contrato de empréstimo");
   });
 });

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { impliedRate, parseBRL } from "@shared/laudo";
-import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, MODALIDADES, type Modalidade, type NotificacaoContratoDados, type NotificacaoDados, avisoTaxa, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
+import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, type NotificacaoContratoDados, type NotificacaoDados, avisoTaxa, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
 import { formatCPF, hojeISO } from "@shared/procuracao";
@@ -11,6 +11,7 @@ import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
 import type { ProcuracaoClient } from "./ProcuracaoForm";
+import { TipoContratoSelect } from "./TipoContratoSelect";
 
 /**
  * Both notificações: "manual" asks the bank for the contract; "contrato" contests the interest rate
@@ -57,7 +58,7 @@ const number = (text: string) => parseBRL(text) ?? 0;
 const common = (form: Form) => ({
   nome: form.nome.trim(), cpf: form.cpf.trim(), bancoNome: form.bancoNome.trim(), bancoCnpj: form.bancoCnpj.trim(), bancoEndereco: form.bancoEndereco.trim(), cidade: form.cidade.trim(), data: form.data,
 });
-const toManual = (form: Form, genero: Genero | null): NotificacaoDados => ({ ...common(form), genero, valor: number(form.valor), valorParcela: number(form.valorParcela), parcelas: Math.trunc(number(form.parcelas)) });
+const toManual = (form: Form, genero: Genero | null, modalidade: Modalidade): NotificacaoDados => ({ ...common(form), genero, modalidade, valor: number(form.valor), valorParcela: number(form.valorParcela), parcelas: Math.trunc(number(form.parcelas)) });
 const toContrato = (form: Form, modalidade: Modalidade, genero: Genero | null): NotificacaoContratoDados => ({ ...common(form), genero, contrato: form.contrato.trim(), taxaMensal: number(form.taxaMensal), modalidade });
 
 export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificacao; clients: ProcuracaoClient[]; onDone?: (result: { attached: boolean }) => void }) {
@@ -133,7 +134,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
 
   const generoDetectado = generoDoNome(form.nome);
   const genero = generoEscolha === "auto" ? generoDetectado : generoEscolha === "indefinido" ? null : generoEscolha;
-  const manual = toManual(form, genero), contrato = toContrato(form, modalidade, genero);
+  const manual = toManual(form, genero, modalidade), contrato = toContrato(form, modalidade, genero);
   const problems = tipo === "manual" ? problemasNotificacao(manual) : problemasNotificacaoContrato(contrato);
   const taxaCheck = tipo === "contrato" ? avisoTaxa(contrato.taxaMensal, impliedRate(number(form.valorFinanciado), number(form.valorParcela), Math.trunc(number(form.parcelas)))) : null;
   const attach = anexar && chosen !== undefined;
@@ -163,7 +164,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     </label>;
 
   const preview = tipo === "manual"
-    ? <p>Pede a <strong>{manual.bancoNome}</strong> o contrato de <strong>{manual.nome.toUpperCase()}</strong>: {moeda(manual.valor)} em {manual.parcelas} parcelas de {moeda(manual.valorParcela)} · {dataPorExtenso(manual.cidade, manual.data)}</p>
+    ? <p>Pede a <strong>{manual.bancoNome}</strong> o contrato de {manual.modalidade} de <strong>{manual.nome.toUpperCase()}</strong>: {moeda(manual.valor)} em {manual.parcelas} parcelas de {moeda(manual.valorParcela)} · {dataPorExtenso(manual.cidade, manual.data)}</p>
     : <p>Contesta junto a <strong>{contrato.bancoNome}</strong> a taxa de {form.taxaMensal}% a.m. do contrato de {modalidade} <strong>nº {contrato.contrato}</strong> de <strong>{contrato.nome.toUpperCase()}</strong> · {dataPorExtenso(contrato.cidade, contrato.data)}</p>;
 
   return <form onSubmit={generate} className="laudo-form laudo-form-page" autoComplete="off">
@@ -188,11 +189,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
           <option value="indefinido">Não definir ("inscrito(a)")</option>
         </select>
       </label>
-      {tipo === "contrato" && <label>Tipo de contrato
-        <select value={modalidade} onChange={(event) => setModalidade(event.target.value as Modalidade)} disabled={busy}>
-          {MODALIDADES.map((option) => <option key={option} value={option}>Contrato de {option}</option>)}
-        </select>
-      </label>}
+      <TipoContratoSelect value={modalidade} onChange={setModalidade} disabled={busy} />
     </div>
 
     {tipo === "contrato" && <fieldset className="laudo-encargos">

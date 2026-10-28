@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ENCARGO_LABELS, type Encargos, type LaudoDados, avisosLaudo, calcularLaudo, emptyLaudo, formatBRL, parseBRL, problemasLaudo } from "@shared/laudo";
+import { type Modalidade } from "@shared/notificacao";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
+import { TipoContratoSelect } from "./TipoContratoSelect";
 
 type TextKey = "contrato" | "contratante" | "instituicao" | "garantia" | "dataContrato" | "primeiroVencimento" | "jurosMora";
 type NumberKey = "valorSolicitado" | "valorFinanciado" | "valorParcela" | "iof" | "parcelas" | "taxaMensal" | "taxaAnual";
@@ -45,13 +47,13 @@ function toForm(dados: LaudoDados): Form {
   };
 }
 
-function toDados(form: Form): LaudoDados {
+function toDados(form: Form, modalidade: Modalidade): LaudoDados {
   const number = (text: string) => parseBRL(text) ?? 0;
   // An empty charge is "NÃO CONSTA" in the laudo; zero too.
   const charge = (text: string) => { const value = parseBRL(text); return value && value > 0 ? value : null; };
   return {
     ...emptyLaudo(),
-    contrato: form.contrato.trim(), contratante: form.contratante.trim().toUpperCase(), instituicao: form.instituicao.trim().toUpperCase(), garantia: form.garantia.trim().toUpperCase(),
+    contrato: form.contrato.trim(), contratante: form.contratante.trim().toUpperCase(), instituicao: form.instituicao.trim().toUpperCase(), objeto: modalidade.toUpperCase(), garantia: form.garantia.trim().toUpperCase(),
     dataContrato: form.dataContrato.trim(), primeiroVencimento: form.primeiroVencimento.trim(), jurosMora: form.jurosMora.trim(),
     valorSolicitado: number(form.valorSolicitado), valorFinanciado: number(form.valorFinanciado), valorParcela: number(form.valorParcela), iof: number(form.iof),
     parcelas: Math.trunc(number(form.parcelas)), taxaMensal: number(form.taxaMensal), taxaAnual: number(form.taxaAnual),
@@ -81,6 +83,7 @@ type LaudoFormProps = {
 export function LaudoForm({ variant, client, clients = [], documento, onDone, onCancel }: LaudoFormProps) {
   const blank = () => toForm({ ...emptyLaudo(), contratante: (client?.name ?? "").toUpperCase() });
   const [form, setForm] = useState<Form>(blank);
+  const [modalidade, setModalidade] = useState<Modalidade>("financiamento");
   const [source, setSource] = useState("");
   const [anexar, setAnexar] = useState(false);
   const [clientName, setClientName] = useState(client?.name ?? "");
@@ -92,12 +95,13 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
   async function read(input: { documentoId: number } | { conteudo: string }, name: string) {
     setSource(`Lendo ${name}...`);
     try {
-      const { dados, encontrados } = await lerContrato.mutateAsync(input);
+      const { dados, modalidade: modalidadeLida, encontrados } = await lerContrato.mutateAsync(input);
       if (encontrados.length === 0) {
         setSource(`Não encontrei texto em ${name} (pode ser um contrato escaneado). Preencha os dados à mão.`);
         return;
       }
       setForm(toForm({ ...dados, contratante: dados.contratante || (chosenClient?.name ?? "").toUpperCase() }));
+      if (modalidadeLida) setModalidade(modalidadeLida);
       setSource(`Dados lidos de ${name}. Confira os valores antes de gerar.`);
     } catch (error) {
       setSource("");
@@ -107,6 +111,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
 
   function reset() {
     setForm(blank());
+    setModalidade("financiamento");
     setSource("");
     setAnexar(false);
     if (!client) setClientName("");
@@ -130,7 +135,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
     if (match && !form.contratante.trim()) setForm((current) => ({ ...current, contratante: match.name.toUpperCase() }));
   }
 
-  const dados = useMemo(() => toDados(form), [form]);
+  const dados = useMemo(() => toDados(form, modalidade), [form, modalidade]);
   const problems = problemasLaudo(dados);
   const warnings = problems.length ? [] : avisosLaudo(dados);
   const result = problems.length ? null : calcularLaudo(dados);
@@ -175,6 +180,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
         <input list="laudo-clientes" value={clientName} onChange={(event) => chooseClient(event.target.value)} placeholder="Escolha da lista para poder anexar o laudo ao cadastro" disabled={busy} />
         <datalist id="laudo-clientes">{clients.map((option) => <option key={option.id} value={option.name} />)}</datalist>
       </label>}
+      <TipoContratoSelect value={modalidade} onChange={setModalidade} disabled={busy} />
       {TEXT_FIELDS.map((field) => <label key={field.key} className={field.wide ? "full-field" : undefined}>{field.label}
         <input value={form[field.key]} onChange={set(field.key)} placeholder={field.placeholder} disabled={lerContrato.isPending} />
       </label>)}

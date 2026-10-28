@@ -33,7 +33,7 @@ describe("notificações with the client's gender", () => {
   const text = (definition: unknown) => JSON.stringify(definition);
 
   it("writes inscrita, inscrito or inscrito(a) in both models", () => {
-    const manual = (genero: "M" | "F" | null) => text(notificacaoDefinition({ ...base, nome: "Maria Exemplo", genero, valor: 1000, parcelas: 10, valorParcela: 120 }));
+    const manual = (genero: "M" | "F" | null) => text(notificacaoDefinition({ ...base, nome: "Maria Exemplo", genero, modalidade: "financiamento", valor: 1000, parcelas: 10, valorParcela: 120 }));
     expect(manual("F")).toContain(", inscrita no CPF");
     expect(manual("M")).toContain(", inscrito no CPF");
     expect(manual(null)).toContain(", inscrito(a) no CPF");

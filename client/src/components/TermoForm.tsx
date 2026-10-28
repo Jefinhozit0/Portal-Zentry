@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
-import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, MODALIDADES, type Modalidade, bancoConhecido } from "@shared/notificacao";
+import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, bancoConhecido } from "@shared/notificacao";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
 import { formatCPF } from "@shared/procuracao";
 import { type TermoDados, problemasTermo } from "@shared/termo";
@@ -11,6 +11,7 @@ import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
 import type { ProcuracaoClient } from "./ProcuracaoForm";
+import { TipoContratoSelect } from "./TipoContratoSelect";
 
 type Key = "nome" | "cpf" | "email" | "endereco" | "banco";
 const FIELDS: { key: Key; label: string; placeholder?: string; wide?: boolean }[] = [
@@ -123,11 +124,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
           <option value="indefinido">Não definir ("brasileiro(a)")</option>
         </select>
       </label>
-      <label>Tipo de contrato
-        <select value={modalidade} onChange={(event) => setModalidade(event.target.value as Modalidade)} disabled={busy}>
-          {MODALIDADES.map((option) => <option key={option} value={option}>Contrato de {option}</option>)}
-        </select>
-      </label>
+      <TipoContratoSelect value={modalidade} onChange={setModalidade} disabled={busy} />
       <label>Banco
         <select value={knownBank?.nome ?? ""} onChange={(event) => setForm((current) => ({ ...current, banco: event.target.value }))} disabled={busy}>
           {BANCOS_POR_NOME.map((bank) => <option key={bank.id} value={bank.nome}>{bank.nome}</option>)}
