@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { emptyLaudo } from "@shared/laudo";
 import { MODALIDADES } from "@shared/notificacao";
+import { conferirContrato } from "./contratoConta";
 import { ENV } from "./env";
 import { type LeituraContrato, camposEncontrados } from "./laudoContrato";
 
@@ -86,6 +87,7 @@ export async function lerContratoComIa(bytes: Uint8Array): Promise<LeituraContra
     return {
       dados, cpf: lido.cpf, cnpjInstituicao: lido.cnpjInstituicao, modalidade: lido.modalidade || null,
       email: lido.email.toLowerCase(), endereco: lido.endereco, encontrados: camposEncontrados(dados),
+      conferencia: conferirContrato(dados, []),
     };
   } catch (error) {
     console.warn("[contratoIa] Leitura por IA falhou:", error instanceof Error ? error.message : error);

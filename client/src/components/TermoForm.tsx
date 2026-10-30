@@ -12,6 +12,7 @@ import { CEP_STATUS_TEXT, focusAt, useCep } from "@/lib/cep";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
+import { type Conferencia, ConferenciaLeitura } from "./ConferenciaLeitura";
 import type { ProcuracaoClient } from "./ProcuracaoForm";
 import { TipoContratoSelect } from "./TipoContratoSelect";
 
@@ -33,6 +34,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
   const [generoEscolha, setGeneroEscolha] = useState<"auto" | Genero | "indefinido">("auto");
   const [anexar, setAnexar] = useState(false);
   const [source, setSource] = useState("");
+  const [conferencia, setConferencia] = useState<Conferencia | null>(null);
   // The CEP only helps to write the address (which carries it): a full CEP fills street, bairro, city and
   // UF, and the caret waits for the number.
   const [cepTexto, setCepTexto] = useState("");
@@ -55,9 +57,10 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
   async function readContract() {
     const file = await pickPdf(MAX_DOCUMENT_BYTES, (name) => toast.error(`${name} passa de 10 MB.`));
     if (!file) return;
-    setSource(`Lendo ${file.name}... Se for um contrato escaneado, leva cerca de 1 minuto.`);
+    setSource(`Lendo ${file.name}... Se for um contrato escaneado, leva de 1 a 2 minutos.`);
     try {
-      const { dados, cpf, cnpjInstituicao, modalidade: lida, email, endereco, encontrados, ocr, ia } = await lerContrato.mutateAsync({ conteudo: file.base64 });
+      const { dados, cpf, cnpjInstituicao, modalidade: lida, email, endereco, encontrados, ocr, ia, conferencia: conferida } = await lerContrato.mutateAsync({ conteudo: file.base64, nome: file.name });
+      setConferencia(encontrados.length ? conferida : null);
       if (encontrados.length === 0) {
         setSource(`Não encontrei texto em ${file.name} nem lendo as imagens das páginas. Preencha os dados à mão.`);
         return;
@@ -91,6 +94,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
     setAnexar(false);
     setSource("");
     setCepTexto("");
+    setConferencia(null);
   }
 
   const generoDetectado = generoDoNome(form.nome);
@@ -124,6 +128,8 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
       </Button>
       <small>{source || "Envie o contrato para preencher cliente, CPF e banco, ou escolha o cliente e digite o resto."}</small>
     </div>
+    {/* The termo has no amounts: only the CPF/CNPJ checks matter. */}
+    <ConferenciaLeitura conferencia={conferencia} comConta={false} soAvisos={/CPF|CNPJ/} />
 
     <div className="new-sale-grid">
       <label className="full-field">Cliente (opcional)

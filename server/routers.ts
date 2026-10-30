@@ -30,6 +30,7 @@ import type { TrpcContext } from "./_core/context";
 import { TICKET_TOPICS, formatTicketMessage, parseTicketMessage } from "@shared/tickets";
 import { MAX_DOCUMENT_BYTES, PROCESS_STATUSES, toneForStatus } from "@shared/processo";
 import { addEvent, deleteDocument, documentDownloadUrl, downloadDocument, listDocuments, listEvents, listLaudos, removeClientFiles, uploadDocument } from "./_core/processo";
+import { guardarSeIncompleto, listarFila, removerDaFila } from "./_core/contratoFila";
 import { lerContrato } from "./_core/laudoContrato";
 import { buildLaudoPdf, laudoFileName } from "./_core/laudoPdf";
 import { buildProcuracaoPdf, procuracaoFileName } from "./_core/procuracaoPdf";
@@ -925,12 +926,18 @@ export const appRouter = router({
       .input(z.object({
         documentoId: z.number().int().positive().optional(),
         conteudo: z.string().min(1).max(Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4 + 4).optional(),
+        /** The file's name, for the queue of contracts to review. */
+        nome: z.string().trim().max(200).optional(),
       }).refine((input) => input.documentoId !== undefined || input.conteudo !== undefined, "Envie o contrato em PDF."))
       .mutation(async ({ input }) => {
-        const bytes = input.documentoId !== undefined ? (await downloadDocument(input.documentoId)).bytes : new Uint8Array(Buffer.from(input.conteudo!, "base64"));
+        const anexo = input.documentoId !== undefined ? await downloadDocument(input.documentoId) : null;
+        const bytes = anexo ? anexo.bytes : new Uint8Array(Buffer.from(input.conteudo!, "base64"));
         if (Buffer.from(bytes.subarray(0, 5)).toString("latin1") !== "%PDF-") throw new TRPCError({ code: "BAD_REQUEST", message: "Esse arquivo não é um PDF." });
         try {
-          return await lerContrato(bytes);
+          const leitura = await lerContrato(bytes);
+          // A reading the account could not confirm goes to the review queue (Administração).
+          void guardarSeIncompleto(bytes, anexo?.nome ?? input.nome ?? "contrato.pdf", leitura);
+          return leitura;
         } catch (error) {
           console.warn("[laudo] Could not read contract:", error instanceof Error ? error.message : error);
           throw new TRPCError({ code: "BAD_REQUEST", message: "Não foi possível ler esse PDF. Preencha os dados à mão." });
@@ -1224,6 +1231,16 @@ export const appRouter = router({
       await registrarAcao(ctx.staffUser.email, "Fez backup manual", jobState.backup.lastResult ?? undefined);
       return jobState.backup;
     }),
+
+    /** Contracts the reader could not confirm, kept on the notebook to teach their layouts in a batch. */
+    contratosParaRevisar: adminOnlyProcedure.query(() => listarFila()),
+
+    removerContratoParaRevisar: adminOnlyProcedure
+      .input(z.object({ id: z.string().max(80).optional() }))
+      .mutation(async ({ input }) => {
+        await removerDaFila(input.id);
+        return { success: true } as const;
+      }),
 
     /** Space and logins used against the Supabase plan limits */
     usoSupabase: adminOnlyProcedure.query(() => computeSupabaseUsage()),

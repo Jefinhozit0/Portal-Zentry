@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
+import { type Conferencia, ConferenciaLeitura } from "./ConferenciaLeitura";
 
 type TextKey = "contrato" | "contratante" | "instituicao" | "garantia" | "dataContrato" | "primeiroVencimento" | "jurosMora";
 type NumberKey = "valorSolicitado" | "valorFinanciado" | "valorParcela" | "iof" | "parcelas" | "taxaMensal" | "taxaAnual";
@@ -82,6 +83,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
   const blank = () => toForm({ ...emptyLaudo(), contratante: (client?.name ?? "").toUpperCase() });
   const [form, setForm] = useState<Form>(blank);
   const [source, setSource] = useState("");
+  const [conferencia, setConferencia] = useState<Conferencia | null>(null);
   const [anexar, setAnexar] = useState(false);
   const [retirarRegistro, setRetirarRegistro] = useState(false);
   const [clientName, setClientName] = useState(client?.name ?? "");
@@ -90,10 +92,11 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
   const lerContrato = trpc.portal.lerContrato.useMutation();
   const gerarLaudo = trpc.portal.gerarLaudo.useMutation();
 
-  async function read(input: { documentoId: number } | { conteudo: string }, name: string) {
-    setSource(`Lendo ${name}... Se for um contrato escaneado, leva cerca de 1 minuto.`);
+  async function read(input: { documentoId: number } | { conteudo: string; nome: string }, name: string) {
+    setSource(`Lendo ${name}... Se for um contrato escaneado, leva de 1 a 2 minutos.`);
     try {
-      const { dados, encontrados, ocr, ia } = await lerContrato.mutateAsync(input);
+      const { dados, encontrados, ocr, ia, conferencia: conferida } = await lerContrato.mutateAsync(input);
+      setConferencia(encontrados.length ? conferida : null);
       if (encontrados.length === 0) {
         setSource(`Não encontrei texto em ${name} nem lendo as imagens das páginas. Preencha os dados à mão.`);
         return;
@@ -113,6 +116,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
   function reset() {
     setForm(blank());
     setSource("");
+    setConferencia(null);
     setAnexar(false);
     setRetirarRegistro(false);
     if (!client) setClientName("");
@@ -126,7 +130,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
 
   async function pickContract() {
     const file = await pickPdf(MAX_DOCUMENT_BYTES, (name) => toast.error(`${name} passa de 10 MB.`));
-    if (file) read({ conteudo: file.base64 }, file.name);
+    if (file) read({ conteudo: file.base64, nome: file.name }, file.name);
   }
 
   function chooseClient(name: string) {
@@ -175,6 +179,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
       </Button>
       <small>{source || "Envie o contrato para preencher sozinho, ou digite só os dados abaixo."}</small>
     </div>
+    <ConferenciaLeitura conferencia={conferencia} />
 
     <div className="new-sale-grid">
       {variant === "page" && <label className="full-field">Cliente (opcional)
