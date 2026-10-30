@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { EMPRESA } from "@shared/empresa";
-import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatCPF, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
+import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatDocumento as formatCPF, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
 import { Button } from "@/components/ui/button";
 import { downloadPdf } from "@/lib/downloadPdf";
 import { trpc } from "@/lib/trpc";
 
 export type ProcuracaoClient = { id: number; name: string; cpf?: string | null; email?: string | null };
 
-/** Procuração extrajudicial: choosing a client fills name, CPF and e-mail; address, CEP and place are typed. */
+/** Procuração extrajudicial: choosing a client fills name, CPF (or CNPJ) and e-mail; address, CEP and place are typed. */
 export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[]; onDone?: (result: { attached: boolean }) => void }) {
   const [dados, setDados] = useState<ProcuracaoDados>(emptyProcuracao);
   const [clientName, setClientName] = useState("");

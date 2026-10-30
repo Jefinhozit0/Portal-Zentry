@@ -20,6 +20,17 @@ describe("termo de prestação de serviços", () => {
     expect(text(termoDefinition({ ...dados, genero: null }))).toContain(" brasileiro(a), inscrito(a) no CPF: ");
   });
 
+  it("qualifies a company client by its CNPJ", () => {
+    const empresa = { ...dados, nome: "Transportes Exemplo Ltda", genero: "M" as const, cpf: "12345678000190" };
+    expect(problemasTermo(empresa)).toEqual([]);
+    expect(problemasTermo({ ...dados, cpf: "1234567800019" })).toEqual(["O CPF precisa ter 11 números (ou o CNPJ, 14)."]);
+    const texto = text(termoDefinition(empresa));
+    expect(texto).toContain(" pessoa jurídica de direito privado, inscrita no CNPJ: ");
+    expect(texto).toContain("12.345.678/0001-90,");
+    expect(texto).toContain("doravante denominada CONTRATANTE, neste ato representada");
+    expect(texto).not.toContain("brasileiro");
+  });
+
   it("uses the company's CNPJ and the contract type", () => {
     const empréstimo = text(termoDefinition({ ...dados, modalidade: "empréstimo" }));
     expect(empréstimo).toContain(EMPRESA.cnpj);

@@ -18,7 +18,7 @@ export const PODERES = "Poderes especiais para a defesa de seus direitos e inter
 
 export const PROCURACAO_CAMPOS: { key: keyof ProcuracaoDados; label: string; placeholder?: string; wide?: boolean }[] = [
   { key: "nome", label: "Nome do outorgante (cliente)", wide: true },
-  { key: "cpf", label: "CPF", placeholder: "000.000.000-00" },
+  { key: "cpf", label: "CPF ou CNPJ", placeholder: "000.000.000-00" },
   { key: "email", label: "E-mail", placeholder: "cliente@email.com" },
   { key: "endereco", label: "Endereço", placeholder: "Rua, número, complemento, bairro", wide: true },
   { key: "cep", label: "CEP", placeholder: "00000-000" },
@@ -57,6 +57,21 @@ export const formatCPF = (cpf: string) => {
   return digits.length === 11 ? digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : cpf.trim();
 };
 
+/**
+ * The client may be a person (CPF, 11 digits) or a company (CNPJ, 14 digits). The field keeps the name
+ * "cpf" in the data, and the documents qualify each one ("inscrito no CPF", "pessoa jurídica ... CNPJ").
+ */
+export const ehCnpj = (documento: string) => documento.replace(/\D/g, "").length === 14;
+export const tipoDocumento = (documento: string) => (ehCnpj(documento) ? "CNPJ" : "CPF");
+export const documentoValido = (documento: string) => [11, 14].includes(documento.replace(/\D/g, "").length);
+export const PROBLEMA_DOCUMENTO = "O CPF precisa ter 11 números (ou o CNPJ, 14).";
+
+/** "00000000000000" → "00.000.000/0000-00"; a CPF as formatCPF; anything else stays as typed. */
+export const formatDocumento = (documento: string) => {
+  const digits = documento.replace(/\D/g, "");
+  return digits.length === 14 ? digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : formatCPF(documento);
+};
+
 /** "00000000" → "00000-000". */
 export const formatCEP = (cep: string) => {
   const digits = cep.replace(/\D/g, "");
@@ -66,7 +81,7 @@ export const formatCEP = (cep: string) => {
 export function problemasProcuracao(dados: ProcuracaoDados): string[] {
   const problems: string[] = [];
   if (!dados.nome.trim()) problems.push("Falta o nome do outorgante.");
-  if (dados.cpf.replace(/\D/g, "").length !== 11) problems.push("O CPF precisa ter 11 números.");
+  if (!documentoValido(dados.cpf)) problems.push(PROBLEMA_DOCUMENTO);
   if (!dados.endereco.trim()) problems.push("Falta o endereço.");
   if (dados.cep.replace(/\D/g, "").length !== 8) problems.push("O CEP precisa ter 8 números.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email.trim())) problems.push("Falta um e-mail válido.");

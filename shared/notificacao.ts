@@ -3,6 +3,7 @@
  * contract figures and the bank change; the company's contacts (shared/empresa.ts) and the 7-day term are fixed.
  */
 
+import { PROBLEMA_DOCUMENTO, documentoValido } from "./procuracao";
 import type { Genero } from "./genero";
 
 export type NotificacaoDados = {
@@ -61,7 +62,7 @@ export function modalidadeDoTitulo(titulo: string): Modalidade | null {
 export function problemasNotificacaoContrato(dados: NotificacaoContratoDados): string[] {
   const problems: string[] = [];
   if (!dados.nome.trim()) problems.push("Falta o nome do cliente.");
-  if (dados.cpf.replace(/\D/g, "").length !== 11) problems.push("O CPF precisa ter 11 números.");
+  if (!documentoValido(dados.cpf)) problems.push(PROBLEMA_DOCUMENTO);
   if (!dados.contrato.trim()) problems.push("Falta o número do contrato.");
   if (!(dados.taxaMensal > 0)) problems.push("Falta a taxa de juros mensal do contrato.");
   problems.push(...problemasBancoELocal(dados));
@@ -154,7 +155,7 @@ export const moeda = (value: number) => `R$${value.toLocaleString("pt-BR", { min
 export function problemasNotificacao(dados: NotificacaoDados): string[] {
   const problems: string[] = [];
   if (!dados.nome.trim()) problems.push("Falta o nome do cliente.");
-  if (dados.cpf.replace(/\D/g, "").length !== 11) problems.push("O CPF precisa ter 11 números.");
+  if (!documentoValido(dados.cpf)) problems.push(PROBLEMA_DOCUMENTO);
   if (!(dados.valor > 0)) problems.push("Falta o valor do contrato.");
   if (!(dados.parcelas > 0 && Number.isInteger(dados.parcelas))) problems.push("Falta a quantidade de parcelas.");
   if (!(dados.valorParcela > 0)) problems.push("Falta o valor da parcela.");

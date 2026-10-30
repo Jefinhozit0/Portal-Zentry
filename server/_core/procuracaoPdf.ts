@@ -1,6 +1,6 @@
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import { EMPRESA } from "@shared/empresa";
-import { PODERES, type ProcuracaoDados, formatCEP, formatCPF, localEData, nomeProprio } from "@shared/procuracao";
+import { PODERES, type ProcuracaoDados, formatCEP, formatDocumento, localEData, tipoDocumento, nomeProprio } from "@shared/procuracao";
 import { renderPdf, safePdfName } from "./pdf";
 
 /** Procuração extrajudicial, laid out like the team's Word model: gray title band, two boxes, powers, place/date and signature line. */
@@ -41,7 +41,7 @@ export function procuracaoDefinition(dados: ProcuracaoDados): TDocumentDefinitio
       { text: "PROCURAÇÃO EXTRAJUDICIAL", color: "#ffffff", bold: true, fontSize: 24, alignment: "center", margin: [-60, -14, -30, 46] },
       box("OUTORGANTE", [
         ["Nome", nomeProprio(dados.nome)],
-        ["CPF", formatCPF(dados.cpf)],
+        [tipoDocumento(dados.cpf), formatDocumento(dados.cpf)],
         ["Endereço", dados.endereco.trim()],
         ["CEP", formatCEP(dados.cep)],
         ["E-mail", dados.email.trim()],

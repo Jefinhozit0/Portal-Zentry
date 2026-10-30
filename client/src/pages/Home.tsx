@@ -647,7 +647,7 @@ function ClientsPage({ setView, selectedClient, setSelectedClient, listFilter, o
         {listFilter && <ListFilterBar label={CLIENT_LIST_FILTERS[listFilter]} count={filterIds ? filtered.length : undefined} noun="cliente(s)" onClear={onClearFilter} />}
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Nome</th><th>CPF</th><th>Status</th><th>Tags</th><th>Atualização</th><th /></tr></thead>
+            <thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Status</th><th>Tags</th><th>Atualização</th><th /></tr></thead>
             <tbody>{filtered.length === 0 && <tr className="empty-row"><td colSpan={6}>{listFilter && !filterIds ? "Carregando..." : listFilter ? "Nenhum cliente nesta situação." : "Nenhum cliente encontrado."}</td></tr>}{visible.map((client) => <tr key={client.name} onClick={() => { setSelectedClient(client); setView("client-detail"); }}><td><div className="table-person"><span className="avatar avatar-gradient">{client.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><strong>{client.name}</strong></div></td><td>{client.cpf}</td><td><StatusPill tone={client.tone}>{client.status}</StatusPill></td><td><div className="tags-container">{client.tags && client.tags.length > 0 ? client.tags.map((tag) => <span key={tag} className="client-tag">{tag}</span>) : <span className="no-tags">-</span>}</div></td><td className="muted-cell">{client.updated}</td><td><button className="row-more icon-button" aria-label="Abrir cliente"><ChevronRight size={17} /></button></td></tr>)}</tbody>
           </table>
         </div>
@@ -661,7 +661,7 @@ function ClientsPage({ setView, selectedClient, setSelectedClient, listFilter, o
             <div className="new-sale-grid">
               <label>Nome completo<input required autoFocus value={newClient.name} onChange={(event) => setNewClient((current) => ({ ...current, name: event.target.value }))} /></label>
               <label>E-mail<input required type="email" value={newClient.email} onChange={(event) => setNewClient((current) => ({ ...current, email: event.target.value }))} /></label>
-              <label>CPF<input required inputMode="numeric" placeholder="000.000.000-00" value={newClient.cpf} onChange={(event) => setNewClient((current) => ({ ...current, cpf: event.target.value }))} /></label>
+              <label>CPF ou CNPJ<input required inputMode="numeric" placeholder="000.000.000-00" value={newClient.cpf} onChange={(event) => setNewClient((current) => ({ ...current, cpf: event.target.value }))} /></label>
               <label>Telefone<input required type="tel" placeholder="(11) 90000-0000" value={newClient.phone} onChange={(event) => setNewClient((current) => ({ ...current, phone: event.target.value }))} /></label>
             </div>
             <fieldset className="client-service-selection">

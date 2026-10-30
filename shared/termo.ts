@@ -1,3 +1,4 @@
+import { PROBLEMA_DOCUMENTO, documentoValido } from "./procuracao";
 import type { Genero } from "./genero";
 import type { Modalidade } from "./notificacao";
 
@@ -21,7 +22,7 @@ export type TermoDados = {
 export function problemasTermo(dados: TermoDados): string[] {
   const problems: string[] = [];
   if (!dados.nome.trim()) problems.push("Falta o nome do cliente.");
-  if (dados.cpf.replace(/\D/g, "").length !== 11) problems.push("O CPF precisa ter 11 números.");
+  if (!documentoValido(dados.cpf)) problems.push(PROBLEMA_DOCUMENTO);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email.trim())) problems.push("Falta um e-mail válido.");
   if (!dados.endereco.trim()) problems.push("Falta o endereço do cliente.");
   if (!dados.banco.trim()) problems.push("Falta a instituição financeira.");
