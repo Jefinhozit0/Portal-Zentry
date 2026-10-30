@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
+import { type Conferencia, ConferenciaLeitura } from "./ConferenciaLeitura";
 import type { ProcuracaoClient } from "./ProcuracaoForm";
 import { TipoContratoSelect } from "./TipoContratoSelect";
 
@@ -66,6 +67,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
   const [clientName, setClientName] = useState("");
   const [anexar, setAnexar] = useState(false);
   const [source, setSource] = useState("");
+  const [conferencia, setConferencia] = useState<Conferencia | null>(null);
   const [modalidade, setModalidade] = useState<Modalidade>("financiamento");
   /** "auto" follows the client's first name; the others are the team's choice. */
   const [generoEscolha, setGeneroEscolha] = useState<"auto" | Genero | "indefinido">("auto");
@@ -91,9 +93,10 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
   async function readContract() {
     const file = await pickPdf(MAX_DOCUMENT_BYTES, (name) => toast.error(`${name} passa de 10 MB.`));
     if (!file) return;
-    setSource(`Lendo ${file.name}... Se for um contrato escaneado, leva cerca de 1 minuto.`);
+    setSource(`Lendo ${file.name}... Se for um contrato escaneado, leva de 1 a 2 minutos.`);
     try {
-      const { dados, cpf, cnpjInstituicao, modalidade: lida, encontrados, ocr, ia } = await lerContrato.mutateAsync({ conteudo: file.base64 });
+      const { dados, cpf, cnpjInstituicao, modalidade: lida, encontrados, ocr, ia, conferencia: conferida } = await lerContrato.mutateAsync({ conteudo: file.base64, nome: file.name });
+      setConferencia(encontrados.length ? conferida : null);
       if (encontrados.length === 0) {
         setSource(`Não encontrei texto em ${file.name} nem lendo as imagens das páginas. Preencha os dados à mão.`);
         return;
@@ -131,6 +134,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     setClientName("");
     setAnexar(false);
     setSource("");
+    setConferencia(null);
     setModalidade("financiamento");
     setGeneroEscolha("auto");
   }
@@ -177,6 +181,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
       </Button>
       <small>{source || "Envie o contrato para preencher cliente, dados do contrato e banco, ou digite abaixo."}</small>
     </div>
+    <ConferenciaLeitura conferencia={conferencia} />
 
     <div className="new-sale-grid">
       <label className="full-field">Cliente (opcional)

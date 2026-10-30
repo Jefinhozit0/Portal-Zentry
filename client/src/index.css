@@ -3222,6 +3222,12 @@ tbody tr.empty-row:hover { background: transparent; }
 .admin-card-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .admin-muted { margin: 0; color: var(--text-soft); font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere; }
 .admin-muted code { font-size: 12.5px; }
+/* Contracts to review (ContratosParaRevisar in Admin.tsx) */
+.admin-review-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.admin-review-list li { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
+.admin-review-list li > div { display: grid; gap: 2px; min-width: 0; }
+.admin-review-list strong { font-size: 13.5px; overflow-wrap: anywhere; }
+.admin-review-list small { color: var(--text-soft); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
 .admin-status { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 15px; font-weight: 600; }
 .admin-status span { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
 .admin-status-connected span { background: var(--green); }
@@ -3430,6 +3436,9 @@ tbody tr.empty-row:hover { background: transparent; }
 .laudo-preview p { grid-column: 1 / -1; margin: 0; color: var(--text-soft); font-size: 13px; }
 .laudo-warning { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0; color: var(--yellow, #a16207); font-size: 12.5px; }
 .laudo-warning svg { flex: none; margin-top: 2px; }
+/* The contract's main numbers closed the Price account (ConferenciaLeitura) */
+.laudo-confirmed { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0; color: var(--green); font-size: 12.5px; }
+.laudo-confirmed svg { flex: none; margin-top: 2px; }
 .laudo-attach { display: flex; align-items: center; gap: 8px; margin: 14px 0 4px; color: var(--text-soft); font-size: 13px; cursor: pointer; }
 @media (max-width: 640px) {
   .laudo-source { flex-direction: column; align-items: flex-start; }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type LaudoDados, avisosLaudo, calcularLaudo, emptyLaudo, impliedRate, parseBRL, problemasLaudo, taxaAnualDe } from "@shared/laudo";
+import { conferirContrato } from "./contratoConta";
 import { type Line, extrairContrato } from "./laudoContrato";
 import { buildLaudoPdf } from "./laudoPdf";
 
@@ -501,5 +502,45 @@ describe("buildLaudoPdf", () => {
     const pdf = await buildLaudoPdf(extrairContrato(SIM_CCB).dados, new Date("2026-10-22T12:00:00Z"));
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(10_000);
+  });
+});
+
+describe("conferência pela conta, nos contratos reais", () => {
+  const completos = { SIM_CCB, SANTANDER_CDC, STELLANTIS_CDC, SANTANDER_CONSIGNADO, BRADESCO_CCB, BRADESCO_OCR };
+  const campos = ["valorFinanciado", "valorParcela", "parcelas", "taxaMensal"] as const;
+
+  it("confirms the main numbers of every contract", () => {
+    for (const lines of Object.values(completos)) expect(extrairContrato(lines).conferencia.conferido).toBe(true);
+  });
+
+  it("corrects the term the OCR misread, from the rest of the scanned contract", () => {
+    const { dados, conferencia } = extrairContrato(BRADESCO_OCR);
+    expect(dados.parcelas).toBe(48);
+    expect(conferencia.corrigidos).toEqual(["parcelas"]);
+  });
+
+  it("never fills a wrong value: a lost or misread number comes back right, or is left for the team", () => {
+    for (const [nome, lines] of Object.entries(completos)) {
+      const certo = extrairContrato(lines).dados;
+      const documento = lines.map((item) => item.text);
+      // Every number of the contract, plus near misses, as what the labels might have read instead.
+      const numeros = documento.flatMap((text) => Array.from(text.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{1,4})/g)).map((match) => parseBRL(match[1])!));
+      const prazos = Array.from({ length: 85 }, (_, index) => index + 12);
+      const taxas = Array.from({ length: 56 }, (_, index) => Math.round((0.5 + index * 0.1) * 100) / 100);
+      for (const campo of campos) {
+        const perto = [0.9, 0.97, 1.03, 1.1].map((fator) => (campo === "parcelas" ? Math.round(certo[campo] * fator) : Math.round(certo[campo] * fator * 100) / 100));
+        const extras = campo === "parcelas" ? prazos : campo === "taxaMensal" ? taxas : [];
+        const errados = Array.from(new Set([0, ...numeros, ...perto, ...extras])).filter((value) => value !== certo[campo]);
+        for (const errado of errados) {
+          for (const taxaAnual of [certo.taxaAnual, 0]) {
+            const dados: LaudoDados = { ...certo, taxaAnual, encargos: { ...certo.encargos }, [campo]: errado };
+            const conferencia = conferirContrato(dados, documento);
+            const caso = `${nome} ${campo} lido=${errado} anual=${taxaAnual}`;
+            if (conferencia.conferido) expect(`${caso} -> ${dados[campo]}`).toBe(`${caso} -> ${certo[campo]}`);
+            else expect(conferencia.avisos.length, caso).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
   });
 });

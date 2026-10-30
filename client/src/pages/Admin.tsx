@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, DatabaseBackup, HardDrive, History, Link2, MessageCircle, RefreshCw, Search, Smartphone } from "lucide-react";
+import { AlertTriangle, DatabaseBackup, FileSearch, HardDrive, History, Link2, MessageCircle, RefreshCw, Search, Smartphone, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -157,6 +157,8 @@ export default function AdminPage() {
             </>
           )}
         </section>
+
+        <ContratosParaRevisar />
       </div>
 
       <section className="panel admin-log">
@@ -198,5 +200,38 @@ export default function AdminPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/**
+ * Contracts the reader could not confirm by the Price account: kept on the notebook (PDF and what was
+ * missing) so their layouts are taught to the reader in a batch. Remove one once it is handled.
+ */
+function ContratosParaRevisar() {
+  const fila = trpc.admin.contratosParaRevisar.useQuery(undefined, { retry: false });
+  const remover = trpc.admin.removerContratoParaRevisar.useMutation({ onSuccess: () => fila.refetch() });
+  const itens = fila.data ?? [];
+  return (
+    <section className="panel admin-card">
+      <div className="admin-card-head"><FileSearch size={18} /><h3>Contratos para ajustar a leitura</h3></div>
+      {itens.length === 0
+        ? <p className="admin-muted">{fila.isLoading ? "Carregando..." : "Nenhum. Todo contrato lido teve valor, parcela, prazo e taxa conferidos pela conta."}</p>
+        : <>
+            <p className="admin-muted">{itens.length} {itens.length === 1 ? "contrato não foi conferido" : "contratos não foram conferidos"} pela conta. Ficam guardados neste computador, em <code>.cache/contratos-revisar</code>, para a leitura aprender esses modelos de uma vez.</p>
+            <ul className="admin-review-list">
+              {itens.slice(0, 8).map((item) => (
+                <li key={item.id}>
+                  <div>
+                    <strong>{item.nome}</strong>
+                    <small>{when(item.quando)}{item.banco ? ` · ${item.banco}` : ""}{item.ocr ? " · escaneado" : ""}</small>
+                    {item.avisos[0] && <small>{item.avisos[0]}</small>}
+                  </div>
+                  <button type="button" className="icon-button" aria-label={`Remover ${item.nome} da lista`} disabled={remover.isPending} onClick={() => remover.mutate({ id: item.id })}><X size={15} /></button>
+                </li>
+              ))}
+            </ul>
+            {itens.length > 8 && <p className="admin-muted">E mais {itens.length - 8}.</p>}
+          </>}
+    </section>
   );
 }

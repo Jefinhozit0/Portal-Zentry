@@ -1,5 +1,6 @@
 import { getDocumentProxy } from "unpdf";
 import { isContratoIaConfigured, lerContratoComIa } from "./contratoIa";
+import { type Conferencia, cnpjValido, conferirContrato, cpfValido } from "./contratoConta";
 import { ocrPages } from "./contratoOcr";
 import { type Encargos, type LaudoDados, emptyLaudo, mesNumero, parseBRL } from "@shared/laudo";
 import { type Modalidade, modalidadeDoTitulo } from "@shared/notificacao";
@@ -27,8 +28,9 @@ const QUADRO_RESUMO_PAGES = 4;
  * A Quadro Resumo past the first pages comes first with the pages that continue it.
  * A scan has no text: with useOcr its pages are read by OCR, and all of them are kept, because scanned
  * pages often come out of order or with some missing; without it, no lines and scanned: true.
+ * documento is the text of every line of every page read, for the account that checks the numbers (contratoConta.ts).
  */
-async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, maxPages = 20): Promise<{ lines: Line[]; scanned: boolean }> {
+async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, maxPages = 20): Promise<{ lines: Line[]; documento: string[]; scanned: boolean }> {
   const pdf = await getDocumentProxy(bytes);
   const pages: Line[][] = [];
   for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, maxPages); pageNumber++) {
@@ -51,15 +53,16 @@ async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, max
     pages.push(pageLines);
   }
   if (pages.every((page) => page.length === 0)) {
-    if (!useOcr) return { lines: [], scanned: true };
+    if (!useOcr) return { lines: [], documento: [], scanned: true };
     const scanned = await ocrPages(pdf, maxPages);
     const quadro = scanned.find((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text) || QUADRO_RESUMO.test(line.text)));
-    return { lines: (quadro ? [quadro, ...scanned.filter((page) => page !== quadro)] : scanned).flat(), scanned: true };
+    const lines = (quadro ? [quadro, ...scanned.filter((page) => page !== quadro)] : scanned).flat();
+    return { lines, documento: lines.map((line) => line.text), scanned: true };
   }
   const padrao = pages.findIndex((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text)));
   const resumo = pages.findIndex((page, index) => index >= firstPages && page.slice(0, 12).some((line) => QUADRO_RESUMO.test(line.text)));
   const quadro = padrao >= 0 ? pages.slice(padrao, padrao + 1) : resumo >= 0 ? pages.slice(resumo, resumo + QUADRO_RESUMO_PAGES) : [];
-  return { lines: [...quadro, ...pages.filter((page, index) => index < firstPages && !quadro.includes(page))].flat(), scanned: false };
+  return { lines: [...quadro, ...pages.filter((page, index) => index < firstPages && !quadro.includes(page))].flat(), documento: pages.flat().map((line) => line.text), scanned: false };
 }
 
 /** Amounts written with R$ on the line, in order; without R$, plain numbers that are not percentages. */
@@ -279,7 +282,8 @@ function contractDate(lines: Line[]) {
 }
 
 /** cpf, cnpjInstituicao and modalidade are not in the laudo, but other documents (notificação) use them. */
-export type LeituraContrato = { dados: LaudoDados; cpf: string; cnpjInstituicao: string; modalidade: Modalidade | null; email: string; endereco: string; encontrados: string[] };
+/** conferencia: whether the main numbers close the Price account, and what to check (contratoConta.ts). */
+export type LeituraContrato = { dados: LaudoDados; cpf: string; cnpjInstituicao: string; modalidade: Modalidade | null; email: string; endereco: string; encontrados: string[]; conferencia: Conferencia };
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
@@ -343,7 +347,7 @@ function bankLine(lines: Line[]): { text: string; index: number } {
 /** The laudo fields that were found (the ones the team doesn't have to type). */
 export function camposEncontrados(dados: LaudoDados) {
   return Object.entries({ ...dados, ...dados.encargos })
-    .filter(([key, value]) => key !== "encargos" && key !== "objeto" && key !== "jurosMora" && value !== "" && value !== 0 && value !== null)
+    .filter(([key, value]) => key !== "encargos" && key !== "objeto" && key !== "jurosMora" && key !== "retirarRegistro" && value !== "" && value !== 0 && value !== null)
     .map(([key]) => key);
 }
 
@@ -357,6 +361,7 @@ function juntar(ia: LeituraContrato, regras: LeituraContrato): LeituraContrato {
   return {
     dados, cpf: ia.cpf || regras.cpf, cnpjInstituicao: ia.cnpjInstituicao || regras.cnpjInstituicao, modalidade: ia.modalidade ?? regras.modalidade,
     email: ia.email || regras.email, endereco: ia.endereco || regras.endereco, encontrados: camposEncontrados(dados),
+    conferencia: conferirContrato(dados, []),
   };
 }
 
@@ -369,20 +374,24 @@ function juntar(ia: LeituraContrato, regras: LeituraContrato): LeituraContrato {
 export async function lerContrato(bytes: Uint8Array): Promise<LeituraContrato & { ocr: boolean; ia: boolean }> {
   const iaLigada = isContratoIaConfigured();
   // pdf.js may take over the buffer it is given, and the bytes may still go to the AI or the OCR.
-  const { lines, scanned } = await readLines(bytes.slice(), !iaLigada);
-  const regras = extrairContrato(lines);
+  const { lines, documento, scanned } = await readLines(bytes.slice(), !iaLigada);
+  const regras = extrairContrato(lines, documento);
   const completa = CAMPOS_PRINCIPAIS.every((campo) => regras.encontrados.includes(campo));
   if (iaLigada && (scanned || !completa)) {
     const ia = await lerContratoComIa(bytes);
     if (ia) return { ...(scanned ? ia : juntar(ia, regras)), ocr: false, ia: true };
-    if (scanned) return { ...extrairContrato((await readLines(bytes.slice(), true)).lines), ocr: true, ia: false };
+    if (scanned) {
+      const lidas = await readLines(bytes.slice(), true);
+      return { ...extrairContrato(lidas.lines, lidas.documento), ocr: true, ia: false };
+    }
   }
   return { ...regras, ocr: scanned, ia: false };
 }
 
-export function extrairContrato(lines: Line[]): LeituraContrato {
+/** documento: the text of the whole contract (every page), where the account looks for what the labels missed. */
+export function extrairContrato(lines: Line[], documento: string[] = lines.map((line) => line.text)): LeituraContrato {
   const dados = emptyLaudo();
-  if (lines.length === 0) return { dados, cpf: "", cnpjInstituicao: "", modalidade: null, email: "", endereco: "", encontrados: [] };
+  if (lines.length === 0) return { dados, cpf: "", cnpjInstituicao: "", modalidade: null, email: "", endereco: "", encontrados: [], conferencia: { conferido: false, corrigidos: [], avisos: [] } };
 
   dados.contrato = lines.map((line) => line.text.match(/(?:OPERA[ÇC][AÃ]O|CONTRATO|C[ÉE]DULA|PROPOSTA|OR[ÇC]AMENTO|CONSIGNADO)\s*(?:N[º°o.]*|n[úu]mero)\s*:?\s*(\d[\d./-]{3,})/i)?.[1]).find(Boolean)
     // Bradesco Financiamentos: "Cédula de Crédito Bancário – CCB – Pessoa Física Nº 4247432349", on top of every page.
@@ -482,6 +491,7 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
   // Bradesco gives the grace period instead of the date: the accountant counts it from the issue date (12/11/2024 + 30 = 12/12/2024).
   if (!dados.primeiroVencimento && dados.dataContrato && quadro.carencia > 0) dados.primeiroVencimento = somarDias(dados.dataContrato, quadro.carencia);
 
+  const conferencia = conferirContrato(dados, documento);
   const encontrados = camposEncontrados(dados);
   // Stellantis: "CPF/CNPJ do(a) solicitante: 859.107.164-68".
   const cpf = quadro.cpf || (lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?(?:\s+do\s*(?:\(a\))?\s+[a-z()]+)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "");
@@ -494,5 +504,10 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
   // Bradesco's title says only "Pessoa Física": page 1 says what it is ("corresponde ao financiamento para aquisição de bem(ns)").
   const titulo = (page: number) => lines.filter((line) => line.page === page).slice(0, 8).map((line) => line.text).join(" ");
   const modalidade = modalidadeDoTitulo(titulo(lines[0].page)) ?? (lines[0].page !== 1 ? modalidadeDoTitulo(titulo(1)) : null);
-  return { dados, cpf, cnpjInstituicao, modalidade, email: quadro.email || clientEmail(lines), endereco: quadro.endereco || clientAddress(lines, dados.contratante), encontrados };
+  // A CPF or CNPJ whose check digits fail was misread (usually by the OCR): said, not hidden.
+  const documentoCliente = cpf.replace(/\D/g, "");
+  if (documentoCliente.length === 11 && !cpfValido(cpf)) conferencia.avisos.push(`O CPF lido (${cpf}) não é válido: algum número foi mal lido. Confira com o contrato.`);
+  if (documentoCliente.length === 14 && !cnpjValido(cpf)) conferencia.avisos.push(`O CNPJ do cliente lido (${cpf}) não é válido: confira com o contrato.`);
+  if (cnpjInstituicao && !cnpjValido(cnpjInstituicao)) conferencia.avisos.push(`O CNPJ do banco lido (${cnpjInstituicao}) não é válido: confira com o contrato.`);
+  return { dados, cpf, cnpjInstituicao, modalidade, email: quadro.email || clientEmail(lines), endereco: quadro.endereco || clientAddress(lines, dados.contratante), encontrados, conferencia };
 }
