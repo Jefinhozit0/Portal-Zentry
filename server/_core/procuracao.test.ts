@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyProcuracao, formatCEP, formatCPF, formatDocumento, hojeISO, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
 import { buildProcuracaoPdf, procuracaoFileName } from "./procuracaoPdf";
 
-const dados = { nome: "Maria da Silva", cpf: "00000000000", endereco: "Rua das Flores, 123", cep: "01234567", email: "maria@exemplo.com", cidade: "São Paulo", data: "2026-10-22" };
+const dados = { nome: "Maria da Silva", cpf: "00000000000", endereco: "Rua das Flores, 123", cep: "01234567", email: "maria@exemplo.com", estado: "São Paulo", data: "2026-10-22" };
 
 describe("procuração extrajudicial", () => {
   it("writes the place and date like the model", () => {
@@ -22,7 +22,7 @@ describe("procuração extrajudicial", () => {
     expect(problemasProcuracao(dados)).toEqual([]);
     expect(problemasProcuracao({ ...dados, cpf: "12.345.678/0001-90" })).toEqual([]);
     expect(problemasProcuracao(emptyProcuracao())).toEqual(expect.arrayContaining(["Falta o nome do outorgante.", "O CPF precisa ter 11 números (ou o CNPJ, 14).", "Falta um e-mail válido."]));
-    expect(problemasProcuracao({ ...dados, cidade: "3550308" })).toEqual(['Escreva a cidade por extenso: "3550308" parece um código, não o nome da cidade.']);
+    expect(problemasProcuracao({ ...dados, estado: "Campinas" })).toEqual(['O local da assinatura é o estado: "Campinas" não é um estado.']);
   });
 
   it("writes the client's name with only the first letter of each name in capitals", () => {

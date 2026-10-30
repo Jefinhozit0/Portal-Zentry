@@ -19,3 +19,14 @@ export function enderecoDoCep(endereco: EnderecoCep, estilo: "procuracao" | "ter
   const resto = partes.filter(Boolean).map((parte) => ` - ${parte}`).join("");
   return { texto: inicio + resto, cursor: inicio.length };
 }
+
+/** The 27 states by UF, as written in a document's place of signing ("Bahia, 30 de outubro de 2026."). */
+export const ESTADOS: Record<string, string> = {
+  AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia", CE: "Ceará", DF: "Distrito Federal",
+  ES: "Espírito Santo", GO: "Goiás", MA: "Maranhão", MT: "Mato Grosso", MS: "Mato Grosso do Sul", MG: "Minas Gerais",
+  PA: "Pará", PB: "Paraíba", PR: "Paraná", PE: "Pernambuco", PI: "Piauí", RJ: "Rio de Janeiro", RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul", RO: "Rondônia", RR: "Roraima", SC: "Santa Catarina", SP: "São Paulo", SE: "Sergipe", TO: "Tocantins",
+};
+
+/** The states' names, in alphabetical order (for a list to choose from). */
+export const NOMES_ESTADOS = Object.values(ESTADOS).sort((a, b) => a.localeCompare(b, "pt-BR"));

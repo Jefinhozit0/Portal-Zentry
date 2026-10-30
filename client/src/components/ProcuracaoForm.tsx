@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EMPRESA } from "@shared/empresa";
-import { enderecoDoCep } from "@shared/cep";
+import { ESTADOS, NOMES_ESTADOS, enderecoDoCep } from "@shared/cep";
 import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatDocumento as formatCPF, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
 import { Button } from "@/components/ui/button";
 import { CEP_STATUS_TEXT, focusAt, useCep } from "@/lib/cep";
@@ -47,15 +47,15 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
     }
   }
 
-  // A full CEP fills street, bairro, city and UF (the caret waits for the number) and, if empty, the place of signing.
+  // A full CEP fills street, bairro, city and UF (the caret waits for the number) and, if not chosen yet, the state where it is signed.
   const enderecoRef = useRef<HTMLInputElement>(null);
   const cep = useCep((found) => {
     const { texto, cursor } = enderecoDoCep(found, "procuracao");
-    setDados((current) => ({ ...current, endereco: texto, cidade: current.cidade.trim() ? current.cidade : found.cidade }));
+    setDados((current) => ({ ...current, endereco: texto, estado: current.estado || (ESTADOS[found.uf] ?? "") }));
     focusAt(enderecoRef, cursor);
   });
 
-  const set = (key: keyof ProcuracaoDados) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const set = (key: keyof ProcuracaoDados) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setDados((current) => ({ ...current, [key]: event.target.value }));
     if (key === "cep") void cep.check(event.target.value);
   };
@@ -68,17 +68,22 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
         <datalist id="procuracao-clientes">{clients.map((option) => <option key={option.id} value={option.name} />)}</datalist>
       </label>
       {PROCURACAO_CAMPOS.map((field) => <label key={field.key} className={field.wide ? "full-field" : undefined}>{field.label}
-        <input
-          type={field.key === "data" ? "date" : field.key === "email" ? "email" : "text"}
-          inputMode={field.key === "cpf" || field.key === "cep" ? "numeric" : undefined}
-          name={`procuracao-${field.key}`}
-          autoComplete="off"
-          value={dados[field.key]}
-          onChange={set(field.key)}
-          placeholder={field.placeholder}
-          disabled={gerar.isPending}
-          ref={field.key === "endereco" ? enderecoRef : undefined}
-        />
+        {field.key === "estado"
+          ? <select name="procuracao-estado" value={dados.estado} onChange={set("estado")} disabled={gerar.isPending}>
+              <option value="">Escolha o estado</option>
+              {NOMES_ESTADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+            </select>
+          : <input
+            type={field.key === "data" ? "date" : field.key === "email" ? "email" : "text"}
+            inputMode={field.key === "cpf" || field.key === "cep" ? "numeric" : undefined}
+            name={`procuracao-${field.key}`}
+            autoComplete="off"
+            value={dados[field.key]}
+            onChange={set(field.key)}
+            placeholder={field.placeholder}
+            disabled={gerar.isPending}
+            ref={field.key === "endereco" ? enderecoRef : undefined}
+          />}
         {field.key === "cep" && cep.status !== "idle" && <small className="field-status" aria-live="polite">{CEP_STATUS_TEXT[cep.status]}</small>}
       </label>)}
     </div>

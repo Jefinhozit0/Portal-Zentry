@@ -2,6 +2,7 @@
  * Procuração extrajudicial (consumidor.gov.br): the client (outorgante) gives the company (outorgado, shared/empresa.ts) powers
  * for administrative complaints. Only the client's data and the place/date change.
  */
+import { NOMES_ESTADOS } from "./cep";
 
 export type ProcuracaoDados = {
   nome: string;
@@ -9,7 +10,8 @@ export type ProcuracaoDados = {
   endereco: string;
   cep: string;
   email: string;
-  cidade: string;
+  /** The place of signing: the state, written out ("São Paulo", "Bahia"). */
+  estado: string;
   /** aaaa-mm-dd, as an <input type="date"> gives it. */
   data: string;
 };
@@ -20,9 +22,9 @@ export const PROCURACAO_CAMPOS: { key: keyof ProcuracaoDados; label: string; pla
   { key: "nome", label: "Nome do outorgante (cliente)", wide: true },
   { key: "cpf", label: "CPF ou CNPJ", placeholder: "000.000.000-00" },
   { key: "email", label: "E-mail", placeholder: "cliente@email.com" },
-  // The CEP comes before the address: it fills the street, the bairro and the city, and the number is what is left.
+  // The CEP comes before the address: it fills the street, the bairro, the city and the state, and the number is what is left.
   { key: "cep", label: "CEP", placeholder: "00000-000" },
-  { key: "cidade", label: "Cidade (local da assinatura)", placeholder: "São Paulo" },
+  { key: "estado", label: "Estado (local da assinatura)" },
   { key: "endereco", label: "Endereço", placeholder: "Rua, número, complemento, bairro", wide: true },
   { key: "data", label: "Data" },
 ];
@@ -30,14 +32,14 @@ export const PROCURACAO_CAMPOS: { key: keyof ProcuracaoDados; label: string; pla
 /** Today in São Paulo, as aaaa-mm-dd. */
 export const hojeISO = (at = new Date()) => at.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 
-export const emptyProcuracao = (): ProcuracaoDados => ({ nome: "", cpf: "", endereco: "", cep: "", email: "", cidade: "", data: hojeISO() });
+export const emptyProcuracao = (): ProcuracaoDados => ({ nome: "", cpf: "", endereco: "", cep: "", email: "", estado: "", data: hojeISO() });
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-/** "São Paulo, 22 de outubro de 2026." */
-export function localEData(dados: Pick<ProcuracaoDados, "cidade" | "data">) {
+/** "São Paulo, 22 de outubro de 2026.": the state, then the date. */
+export function localEData(dados: Pick<ProcuracaoDados, "estado" | "data">) {
   const [year, month, day] = dados.data.split("-").map(Number);
-  return `${dados.cidade.trim()}, ${day} de ${MESES[month - 1]} de ${year}.`;
+  return `${dados.estado.trim()}, ${day} de ${MESES[month - 1]} de ${year}.`;
 }
 
 const PARTICULAS = new Set(["da", "das", "de", "di", "do", "dos", "du", "e"]);
@@ -86,9 +88,8 @@ export function problemasProcuracao(dados: ProcuracaoDados): string[] {
   if (!dados.endereco.trim()) problems.push("Falta o endereço.");
   if (dados.cep.replace(/\D/g, "").length !== 8) problems.push("O CEP precisa ter 8 números.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email.trim())) problems.push("Falta um e-mail válido.");
-  if (!dados.cidade.trim()) problems.push("Falta a cidade.");
-  // The browser's autofill sometimes brings the IBGE code (3550308 = São Paulo) instead of the name.
-  else if (/\d/.test(dados.cidade)) problems.push(`Escreva a cidade por extenso: "${dados.cidade.trim()}" parece um código, não o nome da cidade.`);
+  if (!dados.estado.trim()) problems.push("Escolha o estado (local da assinatura).");
+  else if (!NOMES_ESTADOS.includes(dados.estado.trim())) problems.push(`O local da assinatura é o estado: "${dados.estado.trim()}" não é um estado.`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.data)) problems.push("Falta a data.");
   return problems;
 }
