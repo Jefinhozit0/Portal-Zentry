@@ -133,11 +133,11 @@ export function notifyClient(clientId: number, kind: ClientNoticeKind, detail?: 
   })().catch((error) => console.warn("[notificacoes] Client notice failed:", error));
 }
 
-/** A notice about the portal itself to the team, by e-mail and WhatsApp. Runs in the background. */
-export function notifyTeam(subject: string, paragraphs: string[], whatsappText: string) {
+/** A notice about the portal itself to the team, by e-mail and WhatsApp (email: false skips the e-mail). Runs in the background. */
+export function notifyTeam(subject: string, paragraphs: string[], whatsappText: string, { email = true }: { email?: boolean } = {}) {
   void (async () => {
     const url = await getPublicUrl();
-    const recipients = !isEmailEnabled() ? [] : ENV.teamNotifyEmails.length > 0 ? ENV.teamNotifyEmails : ENV.staffEmails;
+    const recipients = !email || !isEmailEnabled() ? [] : ENV.teamNotifyEmails.length > 0 ? ENV.teamNotifyEmails : ENV.staffEmails;
     await Promise.all([
       ...recipients.map((to) =>
         sendNoticeEmail(to, { subject, title: subject, paragraphs, button: { label: "Abrir o portal", url } })

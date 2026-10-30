@@ -75,6 +75,8 @@ async function check() {
         "O notebook do portal voltou para a tomada",
         ["O carregador foi ligado de novo. O portal segue no ar normalmente para a equipe e para os clientes."],
         "✅ *O notebook do portal Zentry voltou para a tomada.* O portal segue no ar normalmente.",
+        // Unplugging and plugging back in happen often: no e-mail for them, only the low battery one.
+        { email: false },
       );
     }
     onBatterySince = null;
@@ -99,6 +101,7 @@ async function check() {
       "O notebook do portal saiu da tomada",
       [`O notebook que mantém o portal no ar está na bateria${battery ? ` (${battery})` : ""}. Por enquanto, tudo funciona normalmente para a equipe e para os clientes.`, `Mas não feche a tampa nem deixe o notebook parado: se ele dormir, o portal sai do ar. Com a bateria em ${LOW_BATTERY_PERCENT}%, os clientes passam a ver a tela "Em manutenção".`],
       `⚠️ *O notebook do portal Zentry saiu da tomada*${battery ? ` (${battery})` : ""}.\n\nPor enquanto tudo funciona. Não feche a tampa nem deixe parado: se ele dormir, o portal cai. Ligue o carregador assim que puder.`,
+      { email: false },
     );
   }
 }
