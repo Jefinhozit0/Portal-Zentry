@@ -42,31 +42,23 @@ function pagina(titulo: string, content: Content[], { rodape = true } = {}): TDo
   };
 }
 
-const assinatura = (): Content => ({
-  unbreakable: true,
-  stack: [
-    { text: "Cordialmente,", margin: [56, 6, 0, 26] },
-    { canvas: [{ type: "line", x1: 0, y1: 0, x2: PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, y2: 0, lineWidth: 0.8, lineColor: "#333" }] },
-    { text: EMPRESA.nome.toUpperCase(), bold: true, alignment: "center", margin: [0, 8, 0, 4] },
-    { text: `CNPJ: ${EMPRESA.cnpj}`, bold: true, alignment: "center" },
-  ],
-});
-
 /**
  * The signature of the company's representative (server/assets/notificacao/assinatura.png) over the
- * line with name and CNPJ, and the CDC footnote, which close the com-contrato notificação. They stay
- * together: when they do not fit after the text, they go to the next page whole. Without the image,
- * the line is left blank to sign by hand.
+ * line with name and CNPJ, which closes both notificações; the com-contrato one adds the CDC footnote
+ * below. They stay together: when they do not fit after the text, they go to the next page whole.
+ * Without the image, the line is left blank to sign by hand.
  */
 const ASSINATURA_FILE = path.resolve(process.cwd(), "server/assets/notificacao/assinatura.png");
 const ASSINATURA = existsSync(ASSINATURA_FILE) ? `data:image/png;base64,${readFileSync(ASSINATURA_FILE).toString("base64")}` : null;
-const assinaturaComImagem = (nota: Content): Content => ({
+const assinatura = (nota?: Content): Content => ({
   unbreakable: true,
   stack: [
-    { text: "Cordialmente,", margin: [56, 10, 0, ASSINATURA ? 0 : 26] },
-    ...(ASSINATURA ? [{ image: ASSINATURA, width: 150, alignment: "center", margin: [0, 0, 0, -6] } as Content] : []),
-    ...(assinatura() as { stack: Content[] }).stack.slice(1),
-    nota,
+    { text: "Cordialmente,", margin: [56, 6, 0, ASSINATURA ? 0 : 26] },
+    ...(ASSINATURA ? [{ image: ASSINATURA, fit: [170, 88], alignment: "center", margin: [0, 0, 0, -4] } as Content] : []),
+    { canvas: [{ type: "line", x1: 0, y1: 0, x2: PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, y2: 0, lineWidth: 0.8, lineColor: "#333" }] },
+    { text: EMPRESA.nome.toUpperCase(), bold: true, alignment: "center", margin: [0, 8, 0, 4] },
+    { text: `CNPJ: ${EMPRESA.cnpj}`, bold: true, alignment: "center" },
+    ...(nota ? [nota] : []),
   ],
 });
 
@@ -141,7 +133,7 @@ export function notificacaoContratoDefinition(dados: NotificacaoContratoDados): 
     body("Decorrido o prazo in albis, entender-se-á que a presente notificação foi desconsiderada, possibilitando, pois, a busca pelo amparo judicial."),
     body("Nos colocamos à disposição para discutir eventuais acordos."),
     // The footnote of the CDC reference goes below the signature, as in the model.
-    assinaturaComImagem({
+    assinatura({
       stack: [
         { canvas: [{ type: "line", x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 0.8, lineColor: "#333" }], margin: [0, 26, 0, 5] },
         { stack: CDC, fontSize: 8, lineHeight: 1.2, alignment: "justify" },
