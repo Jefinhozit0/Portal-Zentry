@@ -47,7 +47,7 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
     }
   }
 
-  // A full CEP fills the street and bairro (the caret waits for the number) and, if empty, the city.
+  // A full CEP fills street, bairro, city and UF (the caret waits for the number) and, if empty, the place of signing.
   const enderecoRef = useRef<HTMLInputElement>(null);
   const cep = useCep((found) => {
     const { texto, cursor } = enderecoDoCep(found, "procuracao");

@@ -7,14 +7,14 @@ export const formatCepDigits = (digits: string) => `${digits.slice(0, 5)}-${digi
 /**
  * The address text a CEP fills in, as each document writes it, with the place where the number goes
  * (right after "Rua X, "), so the caret can wait there:
- * - procuração (CEP and city have their own fields): "Rua das Flores, | - Centro"
+ * - procuração (the CEP has its own field): "Rua das Flores, | - Centro - São Paulo - SP"
  * - termo (one field, CEP included): "Rua das Flores, | - Centro - São Paulo - SP - CEP: 01001-000"
  * Without a street (a city-wide CEP) the caret stays at the start, for the street and the number.
  */
 export function enderecoDoCep(endereco: EnderecoCep, estilo: "procuracao" | "termo"): { texto: string; cursor: number } {
   const inicio = endereco.logradouro ? `${endereco.logradouro}, ` : "";
   const partes = estilo === "procuracao"
-    ? [endereco.bairro]
+    ? [endereco.bairro, endereco.cidade, endereco.uf]
     : [endereco.bairro, endereco.cidade, endereco.uf, `CEP: ${formatCepDigits(endereco.cep)}`];
   const resto = partes.filter(Boolean).map((parte) => ` - ${parte}`).join("");
   return { texto: inicio + resto, cursor: inicio.length };
