@@ -10,7 +10,7 @@ import type { WASocket } from "baileys";
  * first-access link of a client the team has just registered.
  */
 
-export type WhatsAppWebStatus = "off" | "connecting" | "waiting_qr" | "connected";
+export type WhatsAppWebStatus = "off" | "connecting" | "waiting_qr" | "connected" | "conflict";
 
 const AUTH_DIR = path.resolve(process.env.WHATSAPP_WEB_AUTH_DIR || ".whatsapp-auth");
 /** Minimum gap between two messages, plus a random extra, so sends never come in bursts. */
@@ -83,6 +83,14 @@ export async function startWhatsAppWeb(): Promise<void> {
     if (connection === "close") {
       if (sock === socket) sock = null;
       const code = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output?.statusCode;
+      if (code === DisconnectReason.connectionReplaced) {
+        status = "conflict";
+        lastQr = null;
+        connectedNumber = null;
+        lastChange = new Date().toISOString();
+        console.error("[WhatsApp] Esta sessão foi substituída por outra conexão. Verifique se há outra instância do portal usando o mesmo número.");
+        return;
+      }
       if (code === DisconnectReason.loggedOut) {
         // The device was removed on the phone: forget the old session and show a new QR code.
         console.warn("[WhatsApp] O aparelho foi desconectado no celular. Gerando um novo QR code.");
@@ -119,6 +127,9 @@ function phoneVariants(phone: string): string[] {
 export function sendWhatsAppWebText(phone: string, text: string): Promise<void> {
   const job = queue.then(async () => {
     const socket = sock;
+    if (status === "conflict") {
+      throw new Error("A sessão do WhatsApp foi substituída por outra conexão. Feche as outras instâncias do portal e reinicie o servidor.");
+    }
     if (!socket || status !== "connected") {
       throw new Error("O WhatsApp do portal não está conectado. Escaneie o QR code no terminal do servidor.");
     }

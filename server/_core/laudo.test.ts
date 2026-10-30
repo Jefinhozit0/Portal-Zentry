@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { avisosLaudo, calcularLaudo, emptyLaudo, impliedRate, parseBRL, problemasLaudo } from "@shared/laudo";
+import { type LaudoDados, avisosLaudo, calcularLaudo, emptyLaudo, impliedRate, parseBRL, problemasLaudo, taxaAnualDe } from "@shared/laudo";
 import { type Line, extrairContrato } from "./laudoContrato";
 import { buildLaudoPdf } from "./laudoPdf";
 
@@ -271,6 +271,121 @@ describe("extrairContrato (Itaú, Santander consignado, Digimais)", () => {
   });
 });
 
+// Bradesco Financiamentos CCB: the Quadro Resumo (pages 7 to 9, read first) with the label on top of each cell and the value below, then page 1; personal data replaced.
+const BRADESCO_CCB = [
+  { ...line(769, "[29]Cédula de Crédito Bancário – CCB – Pessoa Física [394]Nº 4247432349"), page: 7 },
+  { ...line(675, "[31]Quadro Resumo"), page: 7 },
+  { ...line(590, "[31]LOJA EXEMPLO DE VEICULOS [361]03.321.969/0001-52"), page: 7 },
+  { ...line(536, "[30]Agente Exemplo Dos Santos [361]111.111.111-11"), page: 7 },
+  { ...line(477, "[31]Razão Social [361]CNPJ/MF"), page: 7 },
+  { ...line(463, "[31]Banco Bradesco Financiamentos S.A. [360]07.207.996/0001-50"), page: 7 },
+  { ...line(386, "[30]2.1 - Nome [386]2.2 - CPF/MF"), page: 7 },
+  { ...line(373, "[30]JOSE EXEMPLO DE OLIVEIRA [386]000.000.000-00"), page: 7 },
+  { ...line(299, "[30]2.7 - Endereço Residencial [311]2.8 - Número [390]2.9 - Complemento"), page: 7 },
+  { ...line(285, "[30]RUA [61]EXEMPLO TOKIMATU [311]411"), page: 7 },
+  { ...line(262, "[31]2.10 - Bairro [201]2.11 - Cidade [381]2.12 - UF [453]2.13 - CEP"), page: 7 },
+  { ...line(248, "[31]JARDIM EXEMPLO [201]JABOTICABAL [381]SP [453]14890680"), page: 7 },
+  { ...line(225, "[31]2.14 - Tel. Celular [133]2.15 - Tel. Residencial [289]2.16 - E-mail"), page: 7 },
+  { ...line(211, "[31](16) 99999-0000"), page: 7 },
+  { ...line(187, "[31]2.17 - Nome do Banco [240]2.18 - Agência [383]2.19 - Conta-Corrente"), page: 7 },
+  { ...line(133, "[31]1 - Marca [146]2 - Modelo [307]3 - Versão [459]4 - Ano do Modelo"), page: 7 },
+  { ...line(119, "[31]FIAT [146]PALIO COM [307]FIRE 1.0 8V A/G. 4P [459]2016"), page: 7 },
+  { ...line(96, "[30]5 - Ano de Fabricação [144]6 - Chassi [387]7 - Combustível/Motor"), page: 7 },
+  { ...line(82, "[30]2016 [144]9BD17122ZG7604394 [387]GASOLINA"), page: 7 },
+  { ...line(672, "[48]SPF BÁSICO [213]XXXX [286]XXXX [385]R$ 1.347,30"), page: 8 },
+  { ...line(440, "[29]1 - Valor do Bem [130]2 - Valor da Entrada [287]3 - Valor Solicitado do Bem (1 - 2)"), page: 8 },
+  { ...line(427, "[29]R$ 37.500,00 [130]R$ 10.500,00 [287]R$ 27.000,00"), page: 8 },
+  { ...line(384, "[29]4.1 - Valor de Seguros [288]4.2 - Valor de Registro"), page: 8 },
+  { ...line(371, "[29]R$ 1.347,30 [164]4,26 % [288]R$ 317,54 [452]1,01 %"), page: 8 },
+  { ...line(355, "[29]4.3 - Valor Tarifa de Cadastro [286]4.4 - Valor Tarifa Avaliação do Bem"), page: 8 },
+  { ...line(341, "[29]R$ 1.150,00 [164]3,64 % [288]R$ 750,00 [452]2,37 %"), page: 8 },
+  { ...line(326, "[29]4.5 - Valor Total de IOF do Bem [288]4.6 - Valor Total de IOF dos Produtos Adicionais"), page: 8 },
+  { ...line(311, "[29]R$ 983,70 [164]3,11 % [288]R$ 45,01 [453]0,14 %"), page: 8 },
+  { ...line(297, "[30]5 - Valor Total Devido no Ato da Contratação (3 + 4 + 7)"), page: 8 },
+  { ...line(284, "[30]R$ 31.593,55 [452]100,00 %"), page: 8 },
+  { ...line(195, "[31]1 - Carência para 1º [127]Vencimento [199]2 - Prazo da Operação mês(es) [385]3 - Valor das Parcelas"), page: 8 },
+  { ...line(181, "[31]30 [199]60 [385]R$ 1.121,02"), page: 8 },
+  { ...line(158, "[32]4 - Quantidade de Parcelas [200]5- Valor Total das Parcelas (3 x 4) [360]R$ [385]6 - Praça de Pagamento"), page: 8 },
+  { ...line(144, "[32]60 [200]67.261,20 [386]JABOTICABAL"), page: 8 },
+  { ...line(649, "[30]1 - Taxa de Juros Efetiva [277]2 - Custo Efetivo Total - CET"), page: 9 },
+  { ...line(633, "[60]2,87 % a.m. [181]41,17 % a.a. [300]3,62 % a.m. [446]54,21 % a.a."), page: 9 },
+  { ...line(540, "[29]1 - Números de Vias [157]2 - Local de Emissão [385]3 - Data de Emissão"), page: 9 },
+  { ...line(527, "[29]2 [157]MONTE ALTO [385]08/09/2026"), page: 9 },
+  { ...line(387, "[29]CPF/MF: 000.000.000-00"), page: 9 },
+  { ...line(769, "[29]Cédula de Crédito Bancário – CCB – Pessoa Física [394]Nº 4247432349"), page: 1 },
+  { ...line(715, "[28]Pagarei ao [82]Banco Bradesco Financiamentos S.A. [273], CNPJ 07.207.996/0001-50, doravante denominado [527]Credor [564],"), page: 1 },
+  { ...line(671, "[28]A presente CCB corresponde ao financiamento para aquisição de bem(ns) de consumo, indicado(s) no (Quadro"), page: 1 },
+  { ...line(45, "[28]Quadro Resumo - VI - 1 - Encargos Remuneratórios (juros da operação) [407], sendo a [454]Taxa de Juros Efetiva"), page: 1 },
+];
+
+// The same Quadro Resumo from a scan, as OCR gives it: one item per word, cell numbers misread ("S-", "41.6", "!",
+// "o" for "2.8", "E" for "2.11"), "2.06" with a dot, and a clause on page 1 that repeats a label. Personal data replaced.
+const BRADESCO_OCR = [
+  { ...line(744, "[20]Cédula [64]de [81]Crédito [128]Bancário [185]- [191]CCB [222]- [229]Pessoa [271]Física [394]Nº [420]4200614670"), page: 5 },
+  { ...line(640, "[20]Quadro [61]Resumo"), page: 5 },
+  { ...line(500, "[20]Banco [54]Bradesco [102]Financiamentos [181]S.A. [405]07.207.996/0001-50"), page: 5 },
+  { ...line(455, "[21]2.1 [38]- [43]Nome [447]2.2 [466]- [470]CPF/MF"), page: 5 },
+  { ...line(441, "[20]JOSE [64]EXEMPLO [137]DE [155]SOUZA [447]000,000.000-00"), page: 5 },
+  { ...line(312, "[21]2.7 [40]- [46]Endereço [94]Residencial [323]o [343]- [350]Número [403]-” [424]- [431]Complemento"), page: 5 },
+  { ...line(296, "[20]R [30]EXEMPLO [83]AURELLI [326]97"), page: 5 },
+  { ...line(280, "[21]2.10 [45]- [55]Bairro [207]E [234]- [244]Cidade [398]eo [470]po [502]e"), page: 5 },
+  { ...line(265, "[20]JARDIM [68]EXEMPLO [210]SAO [237]PAULO [400]SP [477]4856-170"), page: 5 },
+  { ...line(409, "[20]Quadro [65]Resumo [111]- [119]IV [136]— [146]4.5—- [180]Valor [214]Total [245]de [262]IOF [287]do [304]Bem [330]e"), page: 1 },
+  { ...line(393, "[20]Total [51]de [66]IOF [90]dos [112]Produtos [161]Adicionais [219]serão [247]calculados"), page: 1 },
+  { ...line(490, "[20]4,5 [38]- [45]Valor [78]Total [107]de [123]IOF [147]do [163]Bem [294]41.6 [315]- [319]Valor [351]Total [381]de [397]IOF [421]dos [442]Produtos [491]Adicionais"), page: 2 },
+  { ...line(475, "[21]R$ [44]1.069,40 [260]71% [295][RS [318]51,99 [535]0,13 [559]%"), page: 2 },
+  { ...line(458, "[20]S- [36]Valor [68]Total [99]Devido [138]no [154]Ato [175]da [190]Contratação"), page: 2 },
+  { ...line(443, "[21]R$ [46]39.385,10 [525]100,00 [561]%"), page: 2 },
+  { ...line(294, "[21]1 [30]- [36]Carência [86]para [114]1º [126]Vencimento [235]- [242]Prazo [274]da [289]Operação [343]mês(es) [395]! [407]- [413]Valor [445]das [466]Parcelas"), page: 2 },
+  { ...line(280, "[19]30 [248]48 [400]R$ [421]1.307,09"), page: 2 },
+  { ...line(150, "[21]1- [36]Taxa [65]de [80]Juros [112]Efetiva [299]2 [309]- [315]Custo [349]Efetivo [388]Total [421]- [425]CET"), page: 2 },
+  { ...line(132, "[58]2.06 [84]% [99]a.m. [207]27,73 [239]% [254]a.a. [293]| [338]2,62 [364]% [379]a.m. [474]36,36 [504]% [519]a.a."), page: 2 },
+  // The Marca/Modelo labels were lost under the watermark; the year cell runs into the fuel one.
+  { ...line(85, "[21]5 [29]- [37]Ano [60]de [75]Fabricação [350]- [357]Combustível/Motor"), page: 5 },
+  { ...line(72, "[21]2019 [341]FLEX-GASOLINA"), page: 5 },
+  // Anexo I lists the vehicle under "Item(ns) Financiado(s)".
+  { ...line(289, "[51]Item(ns) [98]Financiado(s) [205]Taxa [231]de [246]Juros"), page: 4 },
+  { ...line(276, "[276]Bem(ns) [408]Produto(sy"), page: 4 },
+  { ...line(246, "[22]NISSAN"), page: 4 },
+  { ...line(231, "[23]MARCH [70]FLEX [102]COM [222]2.06 [245]% [259]a.m"), page: 4 },
+  { ...line(217, "[22]SV [42]1.6 [60]16V [83]FLEXSTART [153]A/G"), page: 4 },
+  { ...line(191, "[72]*seg [97]Prot [119]4,99% [265]XXXXXXX"), page: 4 },
+  // The footer read again enlarged: right on two pages, garbled on the third.
+  { ...line(-1, "[30]Mod [180]Credor [220](Banoo) [300]12/11/2024 [360]17:36:34 [400](Horário [440]de [460]Prasílio)"), page: 1 },
+  { ...line(-1, "[30]Mod [180]Credor [220](Banoo) [300]1311/2024 [360]17:36:34 [400](Horário [440]de [460]Prasília)"), page: 2 },
+  { ...line(-1, "[30]Mod [180]Credor [220](Banoo) [300]12/11/2024 [360]17:36:34 [400](Horário [440]de [460]Prasílo)"), page: 5 },
+];
+
+describe("extrairContrato (Bradesco Financiamentos escaneado, lido por OCR)", () => {
+  it("finds each cell by the words of its label, even with the number misread", () => {
+    const leitura = extrairContrato(BRADESCO_OCR);
+    expect(leitura.dados).toMatchObject({
+      contrato: "4200614670", contratante: "JOSE EXEMPLO DE SOUZA", instituicao: "Banco Bradesco Financiamentos S.A.",
+      valorFinanciado: 39385.1, valorParcela: 1307.09, taxaMensal: 2.06, taxaAnual: 27.73, iof: 1121.39,
+      garantia: "NISSAN MARCH FLEX COM SV 1.6 16V FLEXSTART A/G 2019", dataContrato: "12/11/2024",
+    });
+    expect(leitura).toMatchObject({ cpf: "000.000.000-00", cnpjInstituicao: "07.207.996/0001-50", endereco: "R EXEMPLO AURELLI, 97 - JARDIM EXEMPLO - SAO PAULO SP 4856-170" });
+  });
+});
+
+describe("extrairContrato (Bradesco Financiamentos)", () => {
+  it("reads each value from the cell below its label in the Quadro Resumo", () => {
+    const leitura = extrairContrato(BRADESCO_CCB);
+    expect(leitura.dados).toMatchObject({
+      contrato: "4247432349", contratante: "JOSE EXEMPLO DE OLIVEIRA", instituicao: "Banco Bradesco Financiamentos S.A.",
+      garantia: "FIAT PALIO COM FIRE 1.0 8V A/G. 4P 2016/2016", valorSolicitado: 27000, valorFinanciado: 31593.55,
+      parcelas: 60, valorParcela: 1121.02, taxaMensal: 2.87, taxaAnual: 41.17, iof: 1028.71, dataContrato: "08/09/2026",
+      // The contract only gives a 30-day grace period: counted from the issue date, as the accountant does.
+      primeiroVencimento: "08/10/2026",
+    });
+    expect(leitura.dados.encargos).toEqual({ seguros: 1347.3, registro: 317.54, cadastro: 1150, avaliacao: 750 });
+    expect(leitura).toMatchObject({
+      cpf: "000.000.000-00", cnpjInstituicao: "07.207.996/0001-50", modalidade: "financiamento", email: "",
+      endereco: "RUA EXEMPLO TOKIMATU, 411 - JARDIM EXEMPLO - JABOTICABAL/SP - CEP 14890680",
+    });
+  });
+});
+
 describe("extrairContrato", () => {
   const { dados } = extrairContrato(SIM_CCB);
 
@@ -301,40 +416,72 @@ describe("extrairContrato", () => {
 });
 
 describe("calcularLaudo", () => {
-  // Same numbers as the parecer the team made by hand for this contract.
-  const laudo = calcularLaudo(extrairContrato(SIM_CCB).dados);
+  // The Daniel contract (Bradesco Financiamentos) and the parecer the team's accountant made for it.
+  const DANIEL: LaudoDados = {
+    ...emptyLaudo(), contrato: "4200614670", contratante: "DANIEL EXEMPLO", instituicao: "BANCO BRADESCO FINANCIAMENTOS S.A.",
+    valorSolicitado: 35500, valorFinanciado: 39385.1, parcelas: 48, valorParcela: 1307.09, taxaMensal: 2.06, taxaAnual: 27.73, iof: 1121.39,
+    encargos: { seguros: 1771.45, avaliacao: 700, cadastro: null, registro: 292.26 },
+  };
+  const laudo = calcularLaudo(DANIEL);
 
-  it("uses the rate the payment implies, not the rounded one in the contract", () => {
-    expect(laudo.taxaEfetiva).toBeCloseTo(0.0259053, 6);
-    expect(laudo.original.linhas[0]).toMatchObject({ mes: 1 });
-    expect(laudo.original.linhas[0].juros).toBeCloseTo(1447.72, 2);
-    expect(laudo.original.linhas[1].juros).toBeCloseTo(1437.41, 2);
+  it("shows the contract at its written rate when the payment says otherwise", () => {
+    expect(laudo.divergente).toBe(true);
+    expect(laudo.pactuada!.prestacao).toBeCloseTo(1299.75, 2);
+    expect(laudo.pactuada!.totalPago).toBeCloseTo(62388.18, 2);
+    expect(laudo.pactuada!.totalJuros).toBeCloseTo(23003.08, 2);
+    expect(laudo.pactuada!.linhas[0].juros).toBeCloseTo(811.33, 2);
   });
 
-  it("recalculates without the charges", () => {
-    expect(laudo.encargos).toBe(4073.89);
-    expect(laudo.recalculado.valorFinanciado).toBe(51811.15);
-    expect(laudo.recalculado.prestacao).toBeCloseTo(1711, 2);
-    expect(laudo.recalculado.linhas.at(-1)!.prestacao).toBeCloseTo(1711, 2);
-    expect(laudo.recalculado.totalPago).toBeCloseTo(102660.26, 1);
-    expect(laudo.diferencaParcela).toBe(134.54);
-    expect(laudo.diferencaTotal).toBe(8072.4);
+  it("finds the rate the bank really applied", () => {
+    expect(laudo.taxaReal * 100).toBeCloseTo(2.087859, 6);
+    expect(taxaAnualDe(laudo.taxaReal * 100)).toBeCloseTo(28.1413, 4);
+    expect(laudo.original.prestacao).toBe(1307.09);
+    expect(laudo.original.totalJuros).toBeCloseTo(23355.22, 2);
+  });
+
+  it("recalculates at the written rate, keeping the registro", () => {
+    expect(laudo.registroMantido).toBe(true);
+    expect(laudo.encargos).toBe(2471.45);
+    expect(laudo.recalculado.valorFinanciado).toBe(36913.65);
+    expect(laudo.recalculado.prestacao).toBeCloseTo(1218.19, 2);
+    expect(laudo.recalculado.totalPago).toBeCloseTo(58473.26, 2);
+    expect(laudo.recalculado.totalJuros).toBeCloseTo(21559.61, 2);
+  });
+
+  it("gives both proveitos", () => {
+    expect([laudo.diferencaParcela, laudo.diferencaTotal]).toEqual([88.9, 4267.2]);
+    expect(laudo.alternativo).toEqual({ diferencaParcela: 7.34, diferencaTotalParcelas: 352.32, encargosRestituidos: 2471.45, total: 2823.77 });
+  });
+
+  it("takes the registro out too when asked", () => {
+    const semRegistro = calcularLaudo({ ...DANIEL, retirarRegistro: true });
+    expect(semRegistro.registroMantido).toBe(false);
+    expect(semRegistro.recalculado.valorFinanciado).toBe(36621.39);
   });
 
   it("pays the debt off exactly, and the totals add up", () => {
-    for (const tabela of [laudo.original, laudo.recalculado]) {
-      expect(tabela.linhas).toHaveLength(60);
+    for (const tabela of [laudo.original, laudo.pactuada!, laudo.recalculado]) {
+      expect(tabela.linhas).toHaveLength(48);
       expect(tabela.linhas.at(-1)!.saldo).toBe(0);
       expect(tabela.totalAmortizado).toBeCloseTo(tabela.valorFinanciado, 2);
       expect(tabela.totalPago).toBeCloseTo(tabela.totalAmortizado + tabela.totalJuros, 2);
     }
-    expect(laudo.original.totalPago).toBeCloseTo(110732.4, 1);
   });
 
-  it("falls back to the written rate when there is no payment", () => {
+  it("uses one table when the payment matches the written rate", () => {
+    const igual = calcularLaudo({ ...DANIEL, valorParcela: 1299.75 });
+    expect(igual.divergente).toBe(false);
+    expect(igual.pactuada).toBeNull();
+    expect(igual.alternativo).toBeNull();
+  });
+
+  it("falls back to the written rate when there is no payment, and to the payment's without a rate", () => {
     const semParcela = calcularLaudo({ ...extrairContrato(SIM_CCB).dados, valorParcela: 0 });
-    expect(semParcela.taxaEfetiva).toBe(0.0259);
-    expect(semParcela.original.prestacao).toBe(1845.32);
+    expect(semParcela.taxaContrato).toBe(0.0259);
+    expect(semParcela.original.prestacao).toBeCloseTo(1845.32, 2);
+    const semTaxa = calcularLaudo({ ...DANIEL, taxaMensal: 0, taxaAnual: 0 });
+    expect(semTaxa.divergente).toBe(false);
+    expect(semTaxa.taxaContrato * 100).toBeCloseTo(2.087859, 6);
   });
 
   it("reads amounts the way people type them", () => {

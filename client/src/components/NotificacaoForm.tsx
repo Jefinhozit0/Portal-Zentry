@@ -91,11 +91,11 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
   async function readContract() {
     const file = await pickPdf(MAX_DOCUMENT_BYTES, (name) => toast.error(`${name} passa de 10 MB.`));
     if (!file) return;
-    setSource(`Lendo ${file.name}...`);
+    setSource(`Lendo ${file.name}... Se for um contrato escaneado, leva cerca de 1 minuto.`);
     try {
-      const { dados, cpf, cnpjInstituicao, modalidade: lida, encontrados } = await lerContrato.mutateAsync({ conteudo: file.base64 });
+      const { dados, cpf, cnpjInstituicao, modalidade: lida, encontrados, ocr, ia } = await lerContrato.mutateAsync({ conteudo: file.base64 });
       if (encontrados.length === 0) {
-        setSource(`Não encontrei texto em ${file.name} (pode ser um contrato escaneado). Preencha os dados à mão.`);
+        setSource(`Não encontrei texto em ${file.name} nem lendo as imagens das páginas. Preencha os dados à mão.`);
         return;
       }
       const bank = bancoConhecido(dados.instituicao, cnpjInstituicao);
@@ -114,9 +114,12 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
           ? { bancoNome: bank.nome, bancoCnpj: bank.cnpj, bancoEndereco: bank.endereco }
           : { bancoNome: dados.instituicao, bancoCnpj: cnpjInstituicao, bancoEndereco: "" }),
       }));
+      const lidos = ia
+        ? `Dados lidos de ${file.name} pela IA (modelo de contrato novo ou escaneado): confira cada valor com o contrato.`
+        : ocr ? `Dados lidos de ${file.name}, um contrato escaneado: confira cada valor com o contrato, a leitura de imagem pode trocar algum número.` : `Dados lidos de ${file.name}.`;
       setSource(bank || !dados.instituicao
-        ? `Dados lidos de ${file.name}. Confira os valores antes de gerar.`
-        : `Dados lidos de ${file.name}. Falta o endereço da sede de ${dados.instituicao}: confira no site do banco.`);
+        ? `${lidos}${ocr || ia ? "" : " Confira os valores antes de gerar."}`
+        : `${lidos} Falta o endereço da sede de ${dados.instituicao}: confira no site do banco.`);
     } catch (error) {
       setSource("");
       toast.error(error instanceof Error ? error.message : "Não foi possível ler o contrato.");
@@ -224,7 +227,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     {chosen
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosen.name} (o cliente vê no portal)
+          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso)
         </label>
       : clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: a notificação é gerada, mas não fica anexada a nenhum cadastro.</p>}
 

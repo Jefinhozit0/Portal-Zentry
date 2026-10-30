@@ -27,6 +27,11 @@ export type LaudoDados = {
   jurosMora: string;
   iof: number;
   encargos: Encargos;
+  /**
+   * The registro stays in the recalculation by default: it usually does not pass the Detran's table for
+   * the state, and the parecer says so. True takes it out with the other charges.
+   */
+  retirarRegistro: boolean;
 };
 
 export const ENCARGO_LABELS: Record<keyof Encargos, string> = {
@@ -39,8 +44,9 @@ export const ENCARGO_LABELS: Record<keyof Encargos, string> = {
 export const emptyLaudo = (): LaudoDados => ({
   contrato: "", contratante: "", instituicao: "", objeto: "FINANCIAMENTO", garantia: "",
   valorSolicitado: 0, valorFinanciado: 0, parcelas: 0, valorParcela: 0,
-  dataContrato: "", primeiroVencimento: "", taxaMensal: 0, taxaAnual: 0, jurosMora: "1% A.M.", iof: 0,
-  encargos: { seguros: null, avaliacao: null, cadastro: null, registro: null },
+  // No juros de mora unless the contract has them: the parecer then says "NÃO CONSTA".
+  dataContrato: "", primeiroVencimento: "", taxaMensal: 0, taxaAnual: 0, jurosMora: "", iof: 0,
+  encargos: { seguros: null, avaliacao: null, cadastro: null, registro: null }, retirarRegistro: false,
 });
 
 export type LinhaPrice = { mes: number; prestacao: number; amortizacao: number; juros: number; saldo: number };
@@ -77,23 +83,51 @@ export function tabelaPrice(valorFinanciado: number, prestacao: number, rate: nu
 
 export const totalEncargos = (encargos: Encargos) => round2(Object.values(encargos).reduce<number>((total, value) => total + (value ?? 0), 0));
 
+/** Yearly rate from a monthly one, compounded (2,087859% a.m. → 28,1413% a.a.), both in percent. */
+export const taxaAnualDe = (mensal: number) => (Math.pow(1 + mensal / 100, 12) - 1) * 100;
+
+/** The charges the recalculation takes out: all of them, except the registro unless retirarRegistro (see LaudoDados). */
+export function encargosRetirados(dados: LaudoDados): Encargos {
+  return { ...dados.encargos, registro: dados.retirarRegistro ? dados.encargos.registro : null };
+}
+
 /**
- * Both tables and the difference. The rate comes from the contract's own payment (the effective
- * rate the bank charged, e.g. 2,5905% for a contract that says 2,59%); without a payment, from the
- * written monthly rate. The recalculation keeps the rate, the term and the IOF, and only takes the
- * charges out of the financed amount.
+ * The parecer's numbers, as the team's accountant does them:
+ * - original: the contract as the bank charges it, with the payment it states and the rate that payment
+ *   implies (2,087859% for a contract that says 2,06%);
+ * - pactuada: only when that payment differs from the one the written rate gives (divergente), the
+ *   contract at its written rate (R$ 1.299,75 instead of R$ 1.307,09), to show the divergence;
+ * - recalculado: the written rate, the term and the IOF, with the charges out of the financed amount.
+ * Without a written rate the payment's rate is used everywhere; without a payment, the written one.
+ * Proveito pretendido: original against recalculado. Alternativo (divergente only): the charges given
+ * back plus the difference between original and pactuada.
  */
 export function calcularLaudo(dados: LaudoDados) {
   const n = dados.parcelas;
-  const taxaEfetiva = impliedRate(dados.valorFinanciado, dados.valorParcela, n) ?? dados.taxaMensal / 100;
-  const prestacaoOriginal = dados.valorParcela > 0 ? dados.valorParcela : round2(pmt(dados.valorFinanciado, taxaEfetiva, n));
-  const original = tabelaPrice(dados.valorFinanciado, prestacaoOriginal, taxaEfetiva, n);
-  const encargos = totalEncargos(dados.encargos);
-  const financiadoRecalculado = round2(dados.valorFinanciado - encargos);
+  const taxaReal = dados.valorParcela > 0 ? impliedRate(dados.valorFinanciado, dados.valorParcela, n) : null;
+  const taxaContrato = dados.taxaMensal > 0 ? dados.taxaMensal / 100 : taxaReal ?? 0;
   // Full precision, shown rounded: rounding first would push the leftover cents into the last row.
-  const recalculado = tabelaPrice(financiadoRecalculado, pmt(financiadoRecalculado, taxaEfetiva, n), taxaEfetiva, n);
-  const diferencaParcela = round2(original.prestacao - round2(recalculado.prestacao));
-  return { taxaEfetiva, encargos, original, recalculado, diferencaParcela, diferencaTotal: round2(diferencaParcela * n) };
+  const pactuadaCheia = tabelaPrice(dados.valorFinanciado, pmt(dados.valorFinanciado, taxaContrato, n), taxaContrato, n);
+  const original = dados.valorParcela > 0 && taxaReal !== null ? tabelaPrice(dados.valorFinanciado, dados.valorParcela, taxaReal, n) : pactuadaCheia;
+  const divergente = original !== pactuadaCheia && dados.taxaMensal > 0 && Math.abs(round2(pactuadaCheia.prestacao) - dados.valorParcela) >= 0.01;
+  const retirados = encargosRetirados(dados);
+  const encargos = totalEncargos(retirados);
+  const financiadoRecalculado = round2(dados.valorFinanciado - encargos);
+  const recalculado = tabelaPrice(financiadoRecalculado, pmt(financiadoRecalculado, taxaContrato, n), taxaContrato, n);
+  const diferencaParcela = round2(round2(original.prestacao) - round2(recalculado.prestacao));
+  const alternativo = divergente
+    ? (() => {
+        const diferenca = round2(round2(original.prestacao) - round2(pactuadaCheia.prestacao));
+        const diferencaTotalParcelas = round2(diferenca * n);
+        return { diferencaParcela: diferenca, diferencaTotalParcelas, encargosRestituidos: encargos, total: round2(encargos + diferencaTotalParcelas) };
+      })()
+    : null;
+  return {
+    taxaReal: taxaReal ?? taxaContrato, taxaContrato, divergente, encargos, retirados,
+    registroMantido: !dados.retirarRegistro && (dados.encargos.registro ?? 0) > 0,
+    original, pactuada: divergente ? pactuadaCheia : null, recalculado,
+    diferencaParcela, diferencaTotal: round2(diferencaParcela * n), alternativo,
+  };
 }
 
 /** Problems that make the laudo wrong or impossible; empty when it can be generated. */
@@ -105,8 +139,8 @@ export function problemasLaudo(dados: LaudoDados): string[] {
   if (!(dados.parcelas > 0 && Number.isInteger(dados.parcelas))) problems.push("Falta a quantidade de parcelas.");
   if (!(dados.valorParcela > 0) && !(dados.taxaMensal > 0)) problems.push("Informe o valor da parcela ou a taxa mensal.");
   if (dados.valorParcela > 0 && dados.parcelas > 0 && dados.valorParcela * dados.parcelas <= dados.valorFinanciado) problems.push("As parcelas somam menos que o valor financiado.");
-  if (totalEncargos(dados.encargos) <= 0) problems.push("Nenhum encargo para retirar: o recálculo daria o mesmo contrato.");
-  if (totalEncargos(dados.encargos) >= dados.valorFinanciado) problems.push("Os encargos passam do valor financiado.");
+  if (totalEncargos(encargosRetirados(dados)) <= 0) problems.push("Nenhum encargo para retirar: o recálculo daria o mesmo contrato.");
+  if (totalEncargos(encargosRetirados(dados)) >= dados.valorFinanciado) problems.push("Os encargos passam do valor financiado.");
   return problems;
 }
 
@@ -120,7 +154,7 @@ export function avisosLaudo(dados: LaudoDados): string[] {
   if (dados.valorParcela > 0 && dados.taxaMensal > 0) {
     const efetiva = impliedRate(dados.valorFinanciado, dados.valorParcela, dados.parcelas);
     if (efetiva !== null && Math.abs(efetiva * 100 - dados.taxaMensal) > 0.05) {
-      warnings.push(`A parcela corresponde a ${formatPercent(efetiva * 100, 4)} a.m., e o contrato diz ${formatPercent(dados.taxaMensal)}. O cálculo usa a taxa da parcela.`);
+      warnings.push(`A parcela corresponde a ${formatPercent(efetiva * 100, 4)} a.m., e o contrato diz ${formatPercent(dados.taxaMensal)}. O laudo mostra as duas planilhas e recalcula com a taxa do contrato.`);
     }
   }
   return warnings;

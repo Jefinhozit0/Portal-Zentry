@@ -5,7 +5,6 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { usePagination } from "@/lib/pagination";
 import { Pager } from "@/components/Pager";
-import { CountUp } from "@/components/CountUp";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const when = (iso: string | null | undefined) =>
@@ -15,6 +14,7 @@ const STATUS_TEXT: Record<string, string> = {
   connected: "Conectado",
   waiting_qr: "Aguardando o QR code",
   connecting: "Conectando...",
+  conflict: "Conflito com outra conexão",
   off: "Desligado",
 };
 
@@ -45,7 +45,7 @@ function UsageGauge({ label, item, format, detail, projection = true }: { label:
     <div className={`admin-gauge admin-gauge-${tone}`}>
       <div className="admin-gauge-head"><span>{label}</span><strong>{format(item.usado)} <small>de {format(item.limite)}</small></strong></div>
       <div className="progress-track" role="progressbar" aria-label={label} aria-valuenow={Math.round(item.percent * 100)} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${Math.min(100, Math.max(item.percent * 100, item.usado > 0 ? 1 : 0))}%` }} /></div>
-      <small><CountUp value={item.percent * 100} format={(n) => `${n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`} /> usado · {detail}{projection ? ` · no ritmo atual, chega ao limite em ${formatMonths(item.mesesAteOLimite)}` : ""}</small>
+      <small>{`${(item.percent * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`} usado · {detail}{projection ? ` · no ritmo atual, chega ao limite em ${formatMonths(item.mesesAteOLimite)}` : ""}</small>
     </div>
   );
 }
@@ -85,6 +85,9 @@ export default function AdminPage() {
           ) : (
             <>
               <p className={`admin-status admin-status-${whatsapp.status}`}><span /> {STATUS_TEXT[whatsapp.status] ?? whatsapp.status}{whatsapp.number ? ` · ${whatsapp.number}` : ""}</p>
+              {whatsapp.status === "conflict" && (
+                <p className="admin-muted">Outra instância do portal está usando a mesma sessão. Feche os servidores duplicados e reinicie o portal para reconectar.</p>
+              )}
               {whatsapp.qr && (
                 <div className="admin-qr">
                   <img src={whatsapp.qr} alt="QR code para conectar o WhatsApp da empresa" width={240} height={240} />

@@ -6,8 +6,8 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useSlidingMarker } from "@/hooks/useSlidingMarker";
 import { StatusPill } from "./Home";
-import { CountUp } from "@/components/CountUp";
 import { SalesManager } from "./SalesManager";
 import {
   DAY_PERIODS, SECTOR_LABEL, WEEKDAYS, CARD_FEES, buildSalesHubCsv, capitalize, currentMonth, escapeHtml, filterSales, heatLevel, heatmap, hubMoney, hubPercent,
@@ -258,8 +258,11 @@ export default function SalesHubPage({ isAdmin, onChargeback }: { userName: stri
     </section>
   );
 
+  // The gold underline glides to the open tab (".tab-marker" in index.css).
+  const [tabsRef, tabMarker] = useSlidingMarker<HTMLDivElement>(".active", [section]);
   const tabs = (
-    <div className="hub-tabs" role="tablist" aria-label="Setores">
+    <div className="hub-tabs" role="tablist" aria-label="Setores" ref={tabsRef}>
+      {tabMarker && <span className="tab-marker" aria-hidden="true" style={tabMarker} />}
       <button type="button" role="tab" aria-selected={section === "comercial"} className={section === "comercial" ? "active" : ""} onClick={() => openSection("comercial")}><Briefcase size={16} /> Comercial</button>
       <button type="button" role="tab" aria-selected={section === "juridico"} className={section === "juridico" ? "active" : ""} onClick={() => openSection("juridico")}><Scale size={16} /> Jurídico</button>
       <button type="button" role="tab" aria-selected={section === "vendas"} className={section === "vendas" ? "active" : ""} onClick={() => openSection("vendas")}><Table2 size={16} /> Vendas</button>
@@ -572,7 +575,7 @@ export default function SalesHubPage({ isAdmin, onChargeback }: { userName: stri
 
 /** `value` (e.g. "…" while loading) wins over `amount`, which counts up with `format`. */
 function HubMetric({ label, value, amount, format, detail, tone }: { label: string; value?: string; amount: number; format: (value: number) => string; detail: string; tone: string }) {
-  return <div className={`hub-metric hub-metric-${tone}`}><span>{label}</span><strong>{value ?? <CountUp value={amount} format={format} />}</strong><small>{detail}</small></div>;
+  return <div className={`hub-metric hub-metric-${tone}`}><span>{label}</span><strong>{value ?? format(amount)}</strong><small>{detail}</small></div>;
 }
 
 /** Whole numbers while counting up; the last frame is the exact count, same as String(count). */

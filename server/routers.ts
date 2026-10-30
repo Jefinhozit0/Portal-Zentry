@@ -111,7 +111,10 @@ const clientCheckedAt = new Map<number, number>();
 function isStaffUser(user: { email?: string; app_metadata?: Record<string, unknown> }) {
   if (user.app_metadata?.role === "client") return false;
   if (user.app_metadata?.role === "staff" || user.app_metadata?.role === "admin") return true;
-  return Boolean(user.email && ENV.staffEmails.includes(user.email.toLowerCase()));
+  return Boolean(user.email && (
+    ENV.staffEmails.includes(user.email.toLowerCase()) ||
+    ENV.adminEmails.includes(user.email.toLowerCase())
+  ));
 }
 
 /**
@@ -143,6 +146,7 @@ const laudoInput = z.object({
   jurosMora: z.string().trim().max(40),
   iof: valor,
   encargos: z.object({ seguros: valor.nullable(), avaliacao: valor.nullable(), cadastro: valor.nullable(), registro: valor.nullable() }),
+  retirarRegistro: z.boolean().default(false),
 });
 
 /** The procuração form (ProcuracaoDados in shared/procuracao.ts). */
@@ -948,6 +952,7 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Notificação extrajudicial a ${input.dados.bancoNome} pedindo o contrato`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+          notifyClient(input.clientId, "documento", "Notificação extrajudicial");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou notificação", `${input.dados.nome} → ${input.dados.bancoNome}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -965,6 +970,7 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Notificação a ${input.dados.bancoNome} sobre os juros do contrato ${input.dados.contrato}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+          notifyClient(input.clientId, "documento", "Notificação extrajudicial");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou notificação com contrato", `${input.dados.nome} → ${input.dados.bancoNome}, contrato ${input.dados.contrato}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -982,6 +988,8 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Termo de conhecimento: notificação enviada a ${input.dados.banco}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+          // The termo has a line for the client's signature.
+          notifyClient(input.clientId, "assinatura", "Termo de prestação de serviços");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou termo de prestação de serviços", `${input.dados.nome} → ${input.dados.banco}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -999,6 +1007,8 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: "Procuração extrajudicial (consumidor.gov.br)", bytes: pdf }, ctx.staffUser.email ?? "equipe");
+          // The client (outorgante) signs the procuração.
+          notifyClient(input.clientId, "assinatura", "Procuração extrajudicial");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou procuração", input.dados.nome, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -1016,6 +1026,7 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id, name").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Parecer técnico do contrato ${input.dados.contrato}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
+          notifyClient(input.clientId, "documento", "Parecer técnico");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou laudo", `${input.dados.contratante}: contrato ${input.dados.contrato}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };

@@ -9,19 +9,22 @@ import { canSendFreeText, normalizeBrazilPhone, sendFreeText } from "./whatsapp"
 /**
  * Automatic notices.
  * - Client: app notification (see push.ts), WhatsApp and e-mail when the team replies in the chat,
- *   changes the status or attaches a document, so the client comes back to the portal.
+ *   changes the status, attaches a document or attaches one the client has to sign, so the client
+ *   comes back to the portal.
  * - Team: app notification, e-mail (and WhatsApp, if TEAM_NOTIFY_WHATSAPP is set) when a client writes.
  * Each kind of notice has a minimum interval per client, so a burst of messages or uploads turns
  * into a single notice instead of spam (which would also put the WhatsApp number at risk).
  * Nothing here ever fails the action that triggered it.
  */
 
-export type ClientNoticeKind = "resposta" | "status" | "documento";
+export type ClientNoticeKind = "resposta" | "status" | "documento" | "assinatura";
 
 const CLIENT_INTERVAL_MS: Record<ClientNoticeKind, number> = {
   resposta: 15 * 60_000,
   status: 2 * 60_000,
   documento: 10 * 60_000,
+  // Short, so a procuração and a termo generated a few minutes apart each get their own notice.
+  assinatura: 2 * 60_000,
 };
 const PUSH_INTERVAL_MS = 30_000;
 const TEAM_INTERVAL_MS = 10 * 60_000;
@@ -35,7 +38,19 @@ function claimSlot(key: string, intervalMs: number) {
   return true;
 }
 
-function clientTexts(kind: ClientNoticeKind, firstName: string, detail: string | undefined, url: string) {
+/** How the client signs a document for free with the gov.br account (ITI's Assinador), sent with the "assinatura" notice. */
+export const GOVBR_SIGNATURE_STEPS = [
+  "1. Entre no portal pelo link acima e baixe o documento.",
+  "2. Acesse https://assinador.iti.br e entre com a sua conta gov.br (ela precisa ser nível prata ou ouro).",
+  "3. Toque em \"Escolher arquivo\" e selecione o documento que você baixou.",
+  "4. Coloque a assinatura na linha com o seu nome e toque em \"Assinar\".",
+  "5. Confirme com o código que o gov.br envia para o seu celular.",
+  "6. Baixe o documento assinado.",
+  "7. Envie o arquivo assinado respondendo esta mensagem.",
+];
+const GOVBR_LEVEL_TIP = "Se a sua conta gov.br for nível bronze, dá para subir de nível no app gov.br, pelo reconhecimento facial ou pelo seu banco.";
+
+export function clientTexts(kind: ClientNoticeKind, firstName: string, detail: string | undefined, url: string) {
   if (kind === "resposta") {
     return {
       whatsapp: `Olá, ${firstName}! 💬 A equipe da *Zentry Soluções* respondeu sua mensagem no portal.\n\nToque para ver: ${url}`,
@@ -46,6 +61,32 @@ function clientTexts(kind: ClientNoticeKind, firstName: string, detail: string |
     return {
       whatsapp: `Olá, ${firstName}! 📌 Seu processo na *Zentry Soluções* foi atualizado e agora está como *${detail}*.\n\nVeja os detalhes no portal: ${url}`,
       email: { subject: `Seu processo foi atualizado: ${detail}`, title: `Olá, ${firstName}!`, paragraphs: [`Seu processo na Zentry Soluções foi atualizado e agora está como "${detail}".`] },
+    };
+  }
+  if (kind === "assinatura") {
+    const documento = detail ? `: ${detail}` : "";
+    return {
+      whatsapp: [
+        `Olá, ${firstName}! ✍️ A *Zentry Soluções* gerou um novo documento para o seu processo${detail ? `: *${detail}*` : ""}.`,
+        "",
+        `Ele precisa da sua *assinatura*. O documento está no portal: ${url}`,
+        "",
+        "📝 *Como assinar pelo gov.br (é gratuito):*",
+        ...GOVBR_SIGNATURE_STEPS,
+        "",
+        `💡 ${GOVBR_LEVEL_TIP}`,
+        "",
+        "Qualquer dúvida, é só responder esta mensagem.",
+      ].join("\n"),
+      email: {
+        subject: `Documento para assinar${documento}`,
+        title: `Olá, ${firstName}!`,
+        paragraphs: [
+          `A Zentry Soluções gerou um novo documento para o seu processo${documento}. Ele precisa da sua assinatura e está no portal (botão abaixo).`,
+          ["Como assinar pelo gov.br (é gratuito):", ...GOVBR_SIGNATURE_STEPS.map((step) => step.replace("respondendo esta mensagem", "respondendo este e-mail"))].join("\n"),
+          GOVBR_LEVEL_TIP,
+        ],
+      },
     };
   }
   return {
@@ -61,6 +102,7 @@ function clientTexts(kind: ClientNoticeKind, firstName: string, detail: string |
 export function pushText(kind: ClientNoticeKind, detail?: string): PushMessage {
   if (kind === "resposta") return { title: "Nova mensagem da Zentry", body: "A equipe respondeu sua mensagem. Toque para ver.", url: "/?aba=conversa", tag: "resposta" };
   if (kind === "status") return { title: "Seu processo foi atualizado", body: detail ? `Situação atual: ${detail}.` : "Veja a situação atual no portal.", url: "/", tag: "status" };
+  if (kind === "assinatura") return { title: "Documento para assinar", body: detail ? `${detail}: baixe no portal, assine e nos envie.` : "Um novo documento precisa da sua assinatura.", url: "/", tag: "assinatura" };
   return { title: "Novo documento no seu processo", body: detail ? `A Zentry adicionou: ${detail}.` : "A Zentry adicionou um documento ao seu processo.", url: "/", tag: "documento" };
 }
 
