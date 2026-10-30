@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertTriangle, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { enderecoDoCep } from "@shared/cep";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
 import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, bancoConhecido } from "@shared/notificacao";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
 import { formatDocumento as formatCPF } from "@shared/procuracao";
 import { type TermoDados, problemasTermo } from "@shared/termo";
 import { Button } from "@/components/ui/button";
+import { CEP_STATUS_TEXT, focusAt, useCep } from "@/lib/cep";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
@@ -18,8 +20,9 @@ const FIELDS: { key: Key; label: string; placeholder?: string; wide?: boolean }[
   { key: "nome", label: "Nome do cliente", wide: true },
   { key: "cpf", label: "CPF ou CNPJ", placeholder: "000.000.000-00" },
   { key: "email", label: "E-mail", placeholder: "cliente@email.com" },
-  { key: "endereco", label: "Endereço completo, com CEP", placeholder: "Rua Nova, 591 - Tancredo Neves II - Paulo Afonso - BA - CEP: 48609-116", wide: true },
 ];
+const ENDERECO_PLACEHOLDER = "Rua Nova, 591 - Tancredo Neves II - Paulo Afonso - BA - CEP: 48609-116";
+const cepDoEndereco = (endereco: string) => endereco.match(/\b(\d{5})-?(\d{3})\b/)?.slice(1).join("-") ?? "";
 const blank = (): Record<Key, string> => ({ nome: "", cpf: "", email: "", endereco: "", banco: "" });
 
 /** Termo de conhecimento de prestação de serviços: the client is told the company notified the bank asking for the contract. */
@@ -30,6 +33,15 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
   const [generoEscolha, setGeneroEscolha] = useState<"auto" | Genero | "indefinido">("auto");
   const [anexar, setAnexar] = useState(false);
   const [source, setSource] = useState("");
+  // The CEP only helps to write the address (which carries it): a full CEP fills street, bairro, city and
+  // UF, and the caret waits for the number.
+  const [cepTexto, setCepTexto] = useState("");
+  const enderecoRef = useRef<HTMLInputElement>(null);
+  const cep = useCep((found) => {
+    const { texto, cursor } = enderecoDoCep(found, "termo");
+    setForm((current) => ({ ...current, endereco: texto }));
+    focusAt(enderecoRef, cursor);
+  });
   const lerContrato = trpc.portal.lerContrato.useMutation();
   const gerar = trpc.portal.gerarTermo.useMutation();
   const chosen = clients.find((option) => option.name.trim().toLowerCase() === clientName.trim().toLowerCase());
@@ -51,6 +63,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
         return;
       }
       if (lida) setModalidade(lida);
+      if (endereco) setCepTexto(cepDoEndereco(endereco));
       setForm((current) => ({
         ...current,
         nome: dados.contratante || current.nome,
@@ -77,6 +90,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
     setGeneroEscolha("auto");
     setAnexar(false);
     setSource("");
+    setCepTexto("");
   }
 
   const generoDetectado = generoDoNome(form.nome);
@@ -119,6 +133,10 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
       {FIELDS.map((field) => <label key={field.key} className={field.wide ? "full-field" : undefined}>{field.label}
         <input name={`termo-${field.key}`} autoComplete="off" type={field.key === "email" ? "email" : "text"} value={form[field.key]} onChange={set(field.key)} placeholder={field.placeholder} disabled={busy} />
       </label>)}
+      <label>CEP
+        <input name="termo-cep" autoComplete="off" inputMode="numeric" value={cepTexto} onChange={(event) => { setCepTexto(event.target.value); void cep.check(event.target.value); }} placeholder="00000-000" disabled={busy} />
+        {cep.status !== "idle" && <small className="field-status" aria-live="polite">{CEP_STATUS_TEXT[cep.status]}</small>}
+      </label>
       <label>Gênero do cliente
         <select value={generoEscolha} onChange={(event) => setGeneroEscolha(event.target.value as typeof generoEscolha)} disabled={busy}>
           <option value="auto">Pelo nome: {generoDetectado ? GENERO_LABEL[generoDetectado].toLowerCase() : form.nome.trim() ? "não identificado" : "—"}</option>
@@ -126,6 +144,9 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
           <option value="F">Feminino ("brasileira, inscrita")</option>
           <option value="indefinido">Não definir ("brasileiro(a)")</option>
         </select>
+      </label>
+      <label className="full-field">Endereço completo, com CEP
+        <input name="termo-endereco" autoComplete="off" ref={enderecoRef} value={form.endereco} onChange={set("endereco")} placeholder={ENDERECO_PLACEHOLDER} disabled={busy} />
       </label>
       <TipoContratoSelect value={modalidade} onChange={setModalidade} disabled={busy} />
       <label>Banco

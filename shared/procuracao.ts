@@ -20,9 +20,10 @@ export const PROCURACAO_CAMPOS: { key: keyof ProcuracaoDados; label: string; pla
   { key: "nome", label: "Nome do outorgante (cliente)", wide: true },
   { key: "cpf", label: "CPF ou CNPJ", placeholder: "000.000.000-00" },
   { key: "email", label: "E-mail", placeholder: "cliente@email.com" },
-  { key: "endereco", label: "Endereço", placeholder: "Rua, número, complemento, bairro", wide: true },
+  // The CEP comes before the address: it fills the street, the bairro and the city, and the number is what is left.
   { key: "cep", label: "CEP", placeholder: "00000-000" },
   { key: "cidade", label: "Cidade (local da assinatura)", placeholder: "São Paulo" },
+  { key: "endereco", label: "Endereço", placeholder: "Rua, número, complemento, bairro", wide: true },
   { key: "data", label: "Data" },
 ];
 

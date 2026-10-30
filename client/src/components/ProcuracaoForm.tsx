@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EMPRESA } from "@shared/empresa";
+import { enderecoDoCep } from "@shared/cep";
 import { PROCURACAO_CAMPOS, type ProcuracaoDados, emptyProcuracao, formatDocumento as formatCPF, localEData, nomeProprio, problemasProcuracao } from "@shared/procuracao";
 import { Button } from "@/components/ui/button";
+import { CEP_STATUS_TEXT, focusAt, useCep } from "@/lib/cep";
 import { downloadPdf } from "@/lib/downloadPdf";
 import { trpc } from "@/lib/trpc";
 
 export type ProcuracaoClient = { id: number; name: string; cpf?: string | null; email?: string | null };
 
-/** Procuração extrajudicial: choosing a client fills name, CPF (or CNPJ) and e-mail; address, CEP and place are typed. */
+/** Procuração extrajudicial: choosing a client fills name, CPF (or CNPJ) and e-mail; the CEP fills most of the address. */
 export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[]; onDone?: (result: { attached: boolean }) => void }) {
   const [dados, setDados] = useState<ProcuracaoDados>(emptyProcuracao);
   const [clientName, setClientName] = useState("");
@@ -45,7 +47,18 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
     }
   }
 
-  const set = (key: keyof ProcuracaoDados) => (event: React.ChangeEvent<HTMLInputElement>) => setDados((current) => ({ ...current, [key]: event.target.value }));
+  // A full CEP fills the street and bairro (the caret waits for the number) and, if empty, the city.
+  const enderecoRef = useRef<HTMLInputElement>(null);
+  const cep = useCep((found) => {
+    const { texto, cursor } = enderecoDoCep(found, "procuracao");
+    setDados((current) => ({ ...current, endereco: texto, cidade: current.cidade.trim() ? current.cidade : found.cidade }));
+    focusAt(enderecoRef, cursor);
+  });
+
+  const set = (key: keyof ProcuracaoDados) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDados((current) => ({ ...current, [key]: event.target.value }));
+    if (key === "cep") void cep.check(event.target.value);
+  };
 
   // autoComplete off: these are the client's data, and the browser would offer the employee's own (or an IBGE code for the city).
   return <form onSubmit={generate} className="laudo-form laudo-form-page" autoComplete="off">
@@ -64,7 +77,9 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
           onChange={set(field.key)}
           placeholder={field.placeholder}
           disabled={gerar.isPending}
+          ref={field.key === "endereco" ? enderecoRef : undefined}
         />
+        {field.key === "cep" && cep.status !== "idle" && <small className="field-status" aria-live="polite">{CEP_STATUS_TEXT[cep.status]}</small>}
       </label>)}
     </div>
 
