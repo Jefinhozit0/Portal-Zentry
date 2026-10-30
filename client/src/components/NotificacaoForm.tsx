@@ -5,7 +5,7 @@ import { impliedRate, parseBRL } from "@shared/laudo";
 import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, type NotificacaoContratoDados, type NotificacaoDados, avisoTaxa, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
-import { formatCPF, hojeISO } from "@shared/procuracao";
+import { formatDocumento as formatCPF, hojeISO } from "@shared/procuracao";
 import { Button } from "@/components/ui/button";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
@@ -26,7 +26,7 @@ type Field = { key: Key; label: string; placeholder?: string; wide?: boolean; nu
 
 const CLIENT_FIELDS: Field[] = [
   { key: "nome", label: "Nome do cliente", wide: true },
-  { key: "cpf", label: "CPF", placeholder: "000.000.000-00" },
+  { key: "cpf", label: "CPF ou CNPJ", placeholder: "000.000.000-00" },
 ];
 const FIELDS: Record<TipoNotificacao, Field[]> = {
   manual: [

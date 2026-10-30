@@ -1,6 +1,6 @@
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import { flexiona } from "@shared/genero";
-import { formatCPF } from "@shared/procuracao";
+import { ehCnpj, formatDocumento } from "@shared/procuracao";
 import { EMPRESA } from "@shared/empresa";
 import { type TermoDados } from "@shared/termo";
 import { renderPdf, safePdfName } from "./pdf";
@@ -11,7 +11,9 @@ const MARGIN_LEFT = 88, MARGIN_RIGHT = 80;
 
 export function termoDefinition(dados: TermoDados): TDocumentDefinitions {
   const nome = dados.nome.trim().toUpperCase();
-  const g = (masculino: string, feminino: string) => flexiona(masculino, feminino, dados.genero);
+  // A company (CNPJ) is "a empresa": feminine, and "pessoa jurídica" instead of "brasileiro(a)".
+  const empresa = ehCnpj(dados.cpf);
+  const g = (masculino: string, feminino: string) => flexiona(masculino, feminino, empresa ? "F" : dados.genero);
   const endereco = dados.endereco.trim().replace(/\.$/, "");
   const contrato = `contrato de ${dados.modalidade}`;
 
@@ -20,8 +22,8 @@ export function termoDefinition(dados: TermoDados): TDocumentDefinitions {
     {
       text: [
         { text: `${nome},`, bold: true },
-        ` ${g("brasileiro", "brasileira")}, ${g("inscrito", "inscrita")} no CPF: `,
-        { text: `${formatCPF(dados.cpf)},`, bold: true },
+        empresa ? " pessoa jurídica de direito privado, inscrita no CNPJ: " : ` ${g("brasileiro", "brasileira")}, ${g("inscrito", "inscrita")} no CPF: `,
+        { text: `${formatDocumento(dados.cpf)},`, bold: true },
         ` e‑mail ${dados.email.trim()} com endereço na ${endereco}, doravante ${g("denominado", "denominada")} CONTRATANTE, neste ato ${g("representado", "representada")} pela empresa: `,
         { text: `${EMPRESA.nome},`, bold: true },
         " inscrita no CNPJ: ",

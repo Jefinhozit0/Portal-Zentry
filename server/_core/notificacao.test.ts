@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { impliedRate } from "@shared/laudo";
 import { BANCOS_CONHECIDOS, avisoTaxa, modalidadeDoTitulo, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato, reaisPorExtenso } from "@shared/notificacao";
-import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoFileName, notificacaoDefinition, notificacaoFileName } from "./notificacaoPdf";
+import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoDefinition, notificacaoDefinition, notificacaoContratoFileName, notificacaoFileName } from "./notificacaoPdf";
 
 const santander = BANCOS_CONHECIDOS[0];
 const dados = { nome: "Maria da Silva", cpf: "00000000000", modalidade: "financiamento" as const, valor: 50000, parcelas: 60, valorParcela: 1845.54, bancoNome: santander.nome, bancoCnpj: santander.cnpj, bancoEndereco: santander.endereco, cidade: "São Paulo", data: "2025-11-14" };
@@ -54,6 +54,18 @@ describe("notificação extrajudicial", () => {
 describe("notificação com contrato", () => {
   const bb = BANCOS_CONHECIDOS.find((bank) => bank.id === "bb")!;
   const dadosContrato = { nome: "Jorge Exemplo Rodrigues", cpf: "00000000000", contrato: "147126013", taxaMensal: 1.96, modalidade: "empréstimo" as const, bancoNome: bb.nome, bancoCnpj: bb.cnpj, bancoEndereco: bb.endereco, cidade: "Teresina", data: "2026-10-06" };
+
+  it("qualifies a company client by its CNPJ", () => {
+    const empresa = { cpf: "12345678000190", genero: "M" as const };
+    expect(problemasNotificacao({ ...dados, ...empresa })).toEqual([]);
+    const manual = JSON.stringify(notificacaoDefinition({ ...dados, ...empresa }));
+    expect(manual).toContain(", pessoa jurídica de direito privado, inscrita no CNPJ nº ");
+    expect(manual).toContain("12.345.678/0001-90");
+    const contrato = JSON.stringify(notificacaoContratoDefinition({ ...dadosContrato, ...empresa }));
+    expect(contrato).toContain(", pessoa jurídica de direito privado, inscrita no ");
+    expect(contrato).toContain("CNPJ nº 12.345.678/0001-90");
+    expect(JSON.stringify(notificacaoContratoDefinition({ ...dadosContrato, genero: "F" }))).toContain(", inscrita no ");
+  });
 
   it("tells financiamento from empréstimo by the contract title", () => {
     expect(modalidadeDoTitulo("CÉDULA DE CRÉDITO BANCÁRIO - CRÉDITO PESSOAL COM GARANTIA DE VEÍCULO")).toBe("empréstimo");

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
 import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, bancoConhecido } from "@shared/notificacao";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
-import { formatCPF } from "@shared/procuracao";
+import { formatDocumento as formatCPF } from "@shared/procuracao";
 import { type TermoDados, problemasTermo } from "@shared/termo";
 import { Button } from "@/components/ui/button";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
@@ -16,7 +16,7 @@ import { TipoContratoSelect } from "./TipoContratoSelect";
 type Key = "nome" | "cpf" | "email" | "endereco" | "banco";
 const FIELDS: { key: Key; label: string; placeholder?: string; wide?: boolean }[] = [
   { key: "nome", label: "Nome do cliente", wide: true },
-  { key: "cpf", label: "CPF", placeholder: "000.000.000-00" },
+  { key: "cpf", label: "CPF ou CNPJ", placeholder: "000.000.000-00" },
   { key: "email", label: "E-mail", placeholder: "cliente@email.com" },
   { key: "endereco", label: "Endereço completo, com CEP", placeholder: "Rua Nova, 591 - Tancredo Neves II - Paulo Afonso - BA - CEP: 48609-116", wide: true },
 ];

@@ -484,7 +484,7 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
 
   const encontrados = camposEncontrados(dados);
   // Stellantis: "CPF/CNPJ do(a) solicitante: 859.107.164-68".
-  const cpf = quadro.cpf || (lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?(?:\s+do\s*(?:\(a\))?\s+[a-z()]+)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "");
+  const cpf = quadro.cpf || (lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?(?:\s+do\s*(?:\(a\))?\s+[a-z()]+)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "");
   // The bank's CNPJ is on its line, or alone on the line right below it (Stellantis).
   const bank = bankLine(lines);
   const cnpjOf = (text?: string) => text?.match(/CNPJ(?:\s+sob)?(?:\s*n[º°o]\.?)?\s*:?\s*(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/i)?.[1];
