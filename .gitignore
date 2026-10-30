@@ -126,3 +126,6 @@ client/public/__manus__/version.json
 backups/
 logs/
 scripts/energia-anterior.json
+
+# OCR model (Tesseract), downloaded on first use
+.cache/

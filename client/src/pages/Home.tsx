@@ -10,6 +10,7 @@ const LaudosPage = lazy(() => import("./Laudos"));
 import { useQueryClient } from "@tanstack/react-query";
 import { parseTicketMessage } from "@shared/tickets";
 import { INITIAL_STATUS } from "@shared/processo";
+import { EMPRESA } from "@shared/empresa";
 import type { ChargebackDraft } from "@shared/chargebacks";
 import { CHARGEBACK_LIST_FILTERS, CLIENT_LIST_FILTERS, DASHBOARD_RULES, METRIC_HELP, type ChargebackListFilter, type ClientListFilter, type ListFilter } from "@shared/dashboard";
 const ClientDetail = lazy(() => import("./ClientDetail"));
@@ -26,13 +27,14 @@ import type { Session } from "@supabase/supabase-js";
 import { trpc } from "@/lib/trpc";
 import { ZentryLogo } from "@/components/ZentryLogo";
 import { BrandLoader } from "@/components/BrandLoader";
+import { PortalReveal } from "@/components/PortalReveal";
+import { useSlidingMarker } from "@/hooks/useSlidingMarker";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { CountUp } from "@/components/CountUp";
 import { useArrivedIds } from "@/hooks/useArrivedIds";
 import { usePushDevice } from "@/hooks/usePushDevice";
 import { isInstalledApp, isIosSafari } from "@/lib/installPrompt";
 import { pushSupported } from "@/lib/pushNotifications";
-import { playEnter } from "@/lib/motion";
+import { playEnter, prefersReducedMotion } from "@/lib/motion";
 import { supabase } from "@/lib/supabase";
 import {
   AlertTriangle,
@@ -52,7 +54,6 @@ import {
   FileSpreadsheet,
   FileText,
   LayoutDashboard,
-  LockKeyhole,
   LogOut,
   Menu,
   MessageCircle,
@@ -78,8 +79,9 @@ const clientServices = ["Financiamento Imobiliário", "Financiamento Veicular", 
 
 export { hubMoney } from "./salesHubData";
 
-function Logo({ compact = false, size = "md" }: { compact?: boolean; size?: "sm" | "md" | "lg" | "xl" }) {
-  return <ZentryLogo compact={compact} size={size} />;
+/** The menu's logo: the large icon cut down to its letters (".menu-mark" in index.css), sharp and without a frame. */
+function MenuMark() {
+  return <span className="menu-mark" role="img" aria-label="Zentry Soluções"><img src="/icons/icon-512.png" alt="" /></span>;
 }
 
 /** A row of the clientes table as the client screens use it. */
@@ -103,6 +105,9 @@ export function StatusPill({ children, tone }: { children: string; tone: string 
   return <span className={`status-pill status-${tone}`}><span className="status-dot" />{children}</span>;
 }
 
+/** How long the login mark takes to glide back to the middle (".login-mark" transition in index.css). */
+const ENTER_GLIDE_MS = 720;
+
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const requestVerificationCode = trpc.account.requestVerificationCode.useMutation();
   const criarConta = trpc.account.criarConta.useMutation();
@@ -122,6 +127,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  // While the password is being checked the form steps aside and the mark goes back to the middle.
+  const [entering, setEntering] = useState(false);
   // Switching between entrar / criar login / redefinir senha replays a short fade on the card body.
   const panelRef = useRef<HTMLDivElement>(null);
   const firstMode = useRef(true);
@@ -131,6 +138,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     if (panel) playEnter(panel.querySelectorAll(":scope > h2, :scope > .login-subtitle, :scope > form, :scope > .link-button, :scope > .first-access, :scope > .login-button"));
   }, [mode]);
 
+  /** The gold light leans a little towards the pointer (CSS reads --light-x/--light-y). */
+  function followPointer(event: React.PointerEvent<HTMLElement>) {
+    if (event.pointerType !== "mouse") return;
+    const page = event.currentTarget;
+    page.style.setProperty("--light-x", `${(event.clientX / page.clientWidth) * 100}%`);
+    page.style.setProperty("--light-y", `${(event.clientY / page.clientHeight) * 100}%`);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setNotice("");
@@ -138,11 +153,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       setMessage("Preencha e-mail e senha para continuar.");
       return;
     }
+    setEntering(true);
+    const enteredAt = performance.now();
     const { error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: password,
     });
     if (error) {
+      setEntering(false);
       setMessage(
         error.code === "invalid_credentials" || error.message === "Invalid login credentials"
           ? "E-mail ou senha incorretos. Confira os dados ou use \"Esqueci minha senha\"."
@@ -152,6 +170,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       );
       return;
     }
+    // The mark finishes its way to the middle before the portal's curtain (PortalReveal) takes its place.
+    if (!prefersReducedMotion()) await new Promise((done) => setTimeout(done, Math.max(0, ENTER_GLIDE_MS - (performance.now() - enteredAt))));
     onLogin();
   }
 
@@ -238,26 +258,21 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <main className="login-page">
+    <main className={`login-page ${entering ? "is-entering" : ""}`} onPointerMove={followPointer}>
       <section className="login-hero">
-        <div className="login-hero-top"><Logo size="lg" /></div>
-        <div className="hero-copy">
-          <span className="eyebrow"><ShieldCheck size={15} /> Portal do cliente Zentry</span>
-          <h1>Seu processo,<br /><em>transparente</em> de ponta a ponta.</h1>
-          <p>Acompanhe cada etapa com clareza, segurança e o cuidado de uma equipe que está do seu lado.</p>
-          <ul className="login-features">
-            <li><CheckCircle2 size={17} /> Status e progresso do seu processo, atualizados pela equipe</li>
-            <li><CheckCircle2 size={17} /> Documentos do seu caso para baixar quando precisar</li>
-            <li><CheckCircle2 size={17} /> Conversa direta com a equipe da Zentry, com aviso no WhatsApp</li>
-          </ul>
+        {/* The four pieces of the brand mark, cut from the same icon, come together (see "Login: entrance" in index.css) */}
+        <div className="login-mark" role="img" aria-label="Zentry Soluções">
+          {["a", "b", "c", "d"].map((piece) => <img key={piece} className={`login-mark-${piece}`} src="/icons/icon-512.png" alt="" />)}
+          <span className="login-mark-shine" />
         </div>
-        <div className="login-hero-footer"><span>Zentry Soluções</span><strong>Acompanhamento do início ao fim</strong><small>pelo celular ou computador</small></div>
+        <div className="login-hero-footer">
+          <span>{EMPRESA.nome} · CNPJ {EMPRESA.cnpj}</span>
+          <span>{EMPRESA.sede}</span>
+        </div>
       </section>
       <section className="login-panel">
-        <ThemeToggle className="login-theme-toggle" />
         <div className="login-panel-inner" ref={panelRef}>
-          <div className="login-mobile-logo"><Logo size="md" /></div>
-          <div className="secure-badge"><LockKeyhole size={16} /> Acesso seguro</div>
+          <img className="login-mobile-logo" src="/icons/icon-512.png" alt="Zentry Soluções" />
           <h2>{mode === "login" ? "Entrar no portal" : mode === "register" ? "Criar login" : mode === "verify" ? "Verificar e-mail" : mode === "forgot" ? "Redefinir senha" : mode === "reset" ? "Criar nova senha" : "E-mail verificado"}</h2>
           <p className="login-subtitle">{mode === "login" ? "Use seu e-mail e senha para acompanhar o seu processo." : mode === "register" ? "Informe um e-mail que você possa acessar. Enviaremos um código para verificar o endereço." : mode === "verify" ? `Digite o código enviado para ${verifiedEmail}.` : mode === "forgot" ? "Informe o e-mail da sua conta. Se ele estiver cadastrado, enviaremos um código para você criar uma nova senha." : mode === "reset" ? `Se ${resetEmail.trim()} tiver uma conta, enviamos um código para ele. Digite o código e a nova senha.` : "Seu e-mail foi validado. A criação persistente da conta ainda precisa ser conectada ao sistema de usuários."}</p>
           {mode === "login" ? <>
@@ -308,7 +323,6 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           </> : <>
             <button className="primary-button login-button" onClick={backToLogin}>Voltar para entrar <ChevronRight size={18} /></button>
           </>}
-          <div className="login-trust"><span><LockKeyhole size={14} /> Conexão criptografada (HTTPS)</span><span><ShieldCheck size={14} /> Acesso só com sua senha</span></div>
         </div>
       </section>
     </main>
@@ -334,9 +348,13 @@ function Sidebar({ view, setView, collapsed, setCollapsed, onLogout, userName, i
     { id: "saleshub", label: "Sales HUB", icon: FileText },
     ...(isAdmin ? [{ id: "admin" as View, label: "Administração", icon: ShieldCheck }] : []),
   ];
+  // A client's page belongs to Clientes in the menu.
+  const activeId = view === "client-detail" ? "clientes" : view;
+  // The highlight is one marker that glides to the active item (".nav-marker" in index.css).
+  const [navRef, marker] = useSlidingMarker<HTMLElement>(".nav-item-active", [activeId, collapsed, isAdmin]);
   return <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
-    <div className="sidebar-head"><Logo compact={collapsed} size={collapsed ? "sm" : "md"} /><button className="icon-button collapse-button" onClick={() => setCollapsed(!collapsed)} aria-label="Recolher menu">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button></div>
-    <nav className="main-nav">{items.map(({ id, label, icon: Icon }) => <button key={id} className={`nav-item ${view === id ? "nav-item-active" : ""}`} onClick={() => setView(id)}><Icon size={18} /><span>{label}</span>{id === "atendimento" && awaitingCount > 0 && <b className="nav-count">{awaitingCount}</b>}</button>)}</nav>
+    <div className="sidebar-head"><MenuMark /><button className="icon-button collapse-button" onClick={() => setCollapsed(!collapsed)} aria-label="Recolher menu">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button></div>
+    <nav className="main-nav" ref={navRef}>{marker && <span className="nav-marker" aria-hidden="true" style={marker} />}{items.map(({ id, label, icon: Icon }) => <button key={id} className={`nav-item ${activeId === id ? "nav-item-active" : ""}`} onClick={() => setView(id)}><Icon size={18} /><span>{label}</span>{id === "atendimento" && awaitingCount > 0 && <b className="nav-count">{awaitingCount}</b>}</button>)}</nav>
     <div className="sidebar-bottom">
       {!collapsed ? (
         <div className="profile-card">
@@ -391,9 +409,10 @@ function WhatsAppIndicator({ onClick }: { onClick: () => void }) {
 
 function Topbar({ view, onMenu, onSearch, onNotifications, onWhatsApp, userName }: { view: View; onMenu: () => void; onSearch: () => void; onNotifications: () => void; onWhatsApp: () => void; userName: string }) {
   const hasAwaiting = useAwaitingConversations().length > 0;
-  const titles: Record<View, [string, string]> = { dashboard: ["Dashboard", "Visão geral do seu portal"], clientes: ["Clientes", "Acompanhe pessoas e processos"], "client-detail": ["Detalhes do Cliente", "Informações completas do cliente"], chargebacks: ["Chargebacks", "Solicitações de devolução em andamento"], atendimento: ["Atendimento", "Converse com seus clientes"], termos: ["Termos", "Quem já aceitou os termos do portal e quem está pendente"], laudos: ["Gerar documentos", "Laudos, procurações, notificações e termos prontos em PDF"], saleshub: ["Sales HUB", "Centro de inteligência comercial e jurídico"], admin: ["Administração", "WhatsApp, backup e registro de ações"] };
+  // A subtitle only where it says what the page is for.
+  const titles: Record<View, [string, string]> = { dashboard: ["Dashboard", ""], clientes: ["Clientes", ""], "client-detail": ["Ficha do cliente", ""], chargebacks: ["Chargebacks", "Solicitações de devolução em andamento"], atendimento: ["Atendimento", ""], termos: ["Termos", "Quem já aceitou os termos do portal e quem está pendente"], laudos: ["Gerar documentos", "Laudos, procurações, notificações e termos prontos em PDF"], saleshub: ["Sales HUB", "Vendas, metas e controle comercial"], admin: ["Administração", "WhatsApp, backup e registro de ações"] };
   const initials = userName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return <header className="topbar"><button className="mobile-menu-button icon-button" onClick={onMenu} aria-label="Abrir menu"><Menu size={21} /></button><div><p className="breadcrumb">Zentry Soluções <ChevronRight size={14} /> {titles[view][0]}</p><h1>{titles[view][0]}</h1><span>{titles[view][1]}</span></div><div className="topbar-actions"><button className="icon-button" aria-label="Buscar clientes" title="Buscar clientes" onClick={onSearch}><Search size={19} /></button><button className="icon-button notification-button" aria-label="Abrir atendimentos" title="Abrir atendimentos" onClick={onNotifications}><Bell size={19} />{hasAwaiting && <span />}</button><WhatsAppIndicator onClick={onWhatsApp} /><ThemeToggle /><span className="topbar-separator" /><div className="topbar-user"><span className="avatar avatar-gold">{initials}</span><div><strong>{userName}</strong><small>Online agora</small></div></div></div></header>;
+  return <header className="topbar"><button className="mobile-menu-button icon-button" onClick={onMenu} aria-label="Abrir menu"><Menu size={21} /></button><div className="topbar-title">{view === "client-detail" && <p className="breadcrumb">Clientes <ChevronRight size={14} /></p>}<h1>{titles[view][0]}</h1>{titles[view][1] && <span>{titles[view][1]}</span>}</div><div className="topbar-actions"><button className="icon-button" aria-label="Buscar clientes" title="Buscar clientes" onClick={onSearch}><Search size={19} /></button><button className="icon-button notification-button" aria-label="Abrir atendimentos" title="Abrir atendimentos" onClick={onNotifications}><Bell size={19} />{hasAwaiting && <span />}</button><WhatsAppIndicator onClick={onWhatsApp} /><ThemeToggle /><span className="topbar-separator" /><div className="topbar-user"><span className="avatar avatar-gold">{initials}</span><div><strong>{userName}</strong><small>Equipe Zentry</small></div></div></div></header>;
 }
 
 const formatInt = (value: number) => value.toLocaleString("pt-BR");
@@ -435,11 +454,11 @@ function Dashboard({ navigate, userName }: { navigate: (view: View, filter?: Lis
   const processos = data?.processos;
   const loading = "…";
 
-  const heroes: { id: keyof typeof METRIC_HELP; label: string; value: ReactNode; detail: string; icon: typeof Users; target: View; filter?: ListFilter; alert?: boolean }[] = [
-    { id: "ativos", label: "Clientes ativos", value: m ? <CountUp value={m.ativos} format={formatCount} /> : loading, detail: m ? `${formatInt(m.andamento)} em andamento · ${formatInt(m.atencao)} com atenção` : "", icon: Users, target: "clientes", filter: "ativos" },
-    { id: "pendentes", label: "Solicitações pendentes", value: m ? <CountUp value={m.pendentes} format={formatCount} /> : loading, detail: m ? (m.pendentes ? "Conversas aguardando resposta" : "Nenhuma conversa esperando") : "", icon: MessageCircle, target: "atendimento", alert: (m?.pendentes ?? 0) > 0 },
-    { id: "cbkAbertos", label: "Chargebacks abertos", value: m ? <CountUp value={m.cbkAbertos} format={formatCount} /> : loading, detail: m ? (m.ticketCbk === null ? "Sem valores registrados" : `Ticket médio ${hubMoney(m.ticketCbk)}`) : "", icon: CreditCard, target: "chargebacks", filter: "abertos", alert: (m?.prazosVencidos ?? 0) > 0 },
-    { id: "reversao", label: "Taxa de reversão", value: m ? (m.reversao.percent === null ? formatPercent(null) : <CountUp value={m.reversao.percent} format={formatPercent} />) : loading, detail: m ? (m.reversao.encerrados ? `${m.reversao.revertidos} de ${m.reversao.encerrados} chargebacks encerrados` : "Nenhum caso encerrado ainda") : "", icon: ArrowUpRight, target: "chargebacks" },
+  const heroes: { id: keyof typeof METRIC_HELP; label: string; value: ReactNode; detail: string; target: View; filter?: ListFilter; alert?: boolean }[] = [
+    { id: "ativos", label: "Clientes ativos", value: m ? formatCount(m.ativos) : loading, detail: m ? `${formatInt(m.andamento)} em andamento · ${formatInt(m.atencao)} com atenção` : "", target: "clientes", filter: "ativos" },
+    { id: "pendentes", label: "Solicitações pendentes", value: m ? formatCount(m.pendentes) : loading, detail: m ? (m.pendentes ? "Conversas aguardando resposta" : "Nenhuma conversa esperando") : "", target: "atendimento", alert: (m?.pendentes ?? 0) > 0 },
+    { id: "cbkAbertos", label: "Chargebacks abertos", value: m ? formatCount(m.cbkAbertos) : loading, detail: m ? (m.ticketCbk === null ? "Sem valores registrados" : `Ticket médio ${hubMoney(m.ticketCbk)}`) : "", target: "chargebacks", filter: "abertos", alert: (m?.prazosVencidos ?? 0) > 0 },
+    { id: "reversao", label: "Taxa de reversão", value: m ? (m.reversao.percent === null ? formatPercent(null) : formatPercent(m.reversao.percent)) : loading, detail: m ? (m.reversao.encerrados ? `${m.reversao.revertidos} de ${m.reversao.encerrados} chargebacks encerrados` : "Nenhum caso encerrado ainda") : "", target: "chargebacks" },
   ];
 
   const attention: { id: ListFilter; label: string; help: string; value: number | undefined; target: View; severity: "yellow" | "red" }[] = [
@@ -449,6 +468,11 @@ function Dashboard({ navigate, userName }: { navigate: (view: View, filter?: Lis
     { id: "vencidos", label: CHARGEBACK_LIST_FILTERS.vencidos, help: "Chargebacks em aberto cujo prazo já passou.", value: m?.prazosVencidos, target: "chargebacks", severity: "red" },
   ];
   const attentionTotal = attention.reduce((sum, item) => sum + (item.value ?? 0), 0);
+  const today = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const resumo = !m ? "carregando…" : [
+    m.pendentes ? `${formatInt(m.pendentes)} ${m.pendentes === 1 ? "conversa aguardando" : "conversas aguardando"} resposta` : "",
+    attentionTotal ? `${formatInt(attentionTotal)} ${attentionTotal === 1 ? "item" : "itens"} de atenção` : "",
+  ].filter(Boolean).join(" · ") || "nada pendente";
 
   const share = (n: number) => (processos && processos.total ? (n / processos.total) * 100 : 0);
   const donutBackground = processos && processos.total
@@ -458,13 +482,13 @@ function Dashboard({ navigate, userName }: { navigate: (view: View, filter?: Lis
   return <div className="page-content dashboard-content">
     {alertVisible && latest && <div className="alert-banner"><div className="alert-icon"><Bell size={18} /></div><div><strong>{awaiting.length === 1 ? "1 conversa aguardando resposta" : `${awaiting.length} conversas aguardando resposta`}</strong><p>{latest.name} <span>·</span> {latest.ticketTopic ? `Ticket · ${latest.ticketTopic}: ` : ""}“{latest.lastText.length > 90 ? `${latest.lastText.slice(0, 90)}…` : latest.lastText}”</p></div><button className="banner-link" onClick={() => setView("atendimento")}>Responder <ArrowUpRight size={15} /></button><button className="banner-close icon-button" aria-label="Fechar" onClick={() => setAlertVisible(false)}><X size={16} /></button></div>}
 
-    <div className="welcome-row"><div><span className="eyebrow eyebrow-muted">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span><h2>Olá, {userName.split(" ")[0]}</h2><p>{m ? (attentionTotal || m.pendentes ? "Há itens que precisam da sua atenção hoje." : "Tudo em dia por aqui.") : "Carregando o resumo do portal..."}</p></div><button className="secondary-button" onClick={() => setView("clientes")}><Users size={16} /> Ver clientes</button></div>
+    <div className="welcome-row"><div><h2>Olá, {userName.split(" ")[0]}</h2><p>{today} · {resumo}</p></div><button className="secondary-button" onClick={() => setView("clientes")}><Users size={16} /> Ver clientes</button></div>
 
     {dashboardQuery.error && <p className="dashboard-error" role="alert">Não foi possível calcular os indicadores agora: {dashboardQuery.error.message}</p>}
 
     <div className="kpi-grid">
-      {heroes.map(({ id, label, value, detail, icon: Icon, target, filter, alert }) => <button key={id} type="button" className={`kpi-card ${alert ? "kpi-card-alert" : ""}`} title={METRIC_HELP[id]} onClick={() => navigate(target, filter)}>
-        <span className="kpi-head"><span>{label}</span><span className="kpi-icon"><Icon size={17} /></span></span>
+      {heroes.map(({ id, label, value, detail, target, filter, alert }) => <button key={id} type="button" className={`kpi-card ${alert ? "kpi-card-alert" : ""}`} title={METRIC_HELP[id]} onClick={() => navigate(target, filter)}>
+        <span className="kpi-head">{label}</span>
         <strong className={m || dashboardQuery.error ? undefined : "is-loading"}>{value}</strong>
         <small>{detail}</small>
       </button>)}
@@ -473,7 +497,7 @@ function Dashboard({ navigate, userName }: { navigate: (view: View, filter?: Lis
     <div className="dashboard-columns">
       <section className="panel">
         <div className="panel-heading"><div><h3>Carteira de clientes</h3><p>Situação dos processos</p></div><button className="text-button" onClick={() => setView("clientes")}>Ver <ChevronRight size={15} /></button></div>
-        <div className="donut-wrap"><div className="donut" key={processos ? "pronto" : "carregando"} style={{ "--donut-fill": donutBackground } as CSSProperties}><div className="donut-center"><strong>{processos ? <CountUp value={processos.total} format={formatCount} /> : loading}</strong><span>clientes</span></div></div><div className="legend"><div><i className="legend-dot dot-violet" /><span>Em andamento</span><strong>{processos ? <CountUp value={processos.andamento} format={formatCount} /> : loading}</strong></div><div><i className="legend-dot dot-yellow" /><span>Atenção</span><strong>{processos ? <CountUp value={processos.atencao} format={formatCount} /> : loading}</strong></div><div><i className="legend-dot dot-green" /><span>Concluídos</span><strong>{processos ? <CountUp value={processos.concluidos} format={formatCount} /> : loading}</strong></div></div></div>
+        <div className="donut-wrap"><div className="donut" key={processos ? "pronto" : "carregando"} style={{ "--donut-fill": donutBackground } as CSSProperties}><div className="donut-center"><strong>{processos ? formatCount(processos.total) : loading}</strong><span>clientes</span></div></div><div className="legend"><div><i className="legend-dot dot-violet" /><span>Em andamento</span><strong>{processos ? formatCount(processos.andamento) : loading}</strong></div><div><i className="legend-dot dot-yellow" /><span>Atenção</span><strong>{processos ? formatCount(processos.atencao) : loading}</strong></div><div><i className="legend-dot dot-green" /><span>Concluídos</span><strong>{processos ? formatCount(processos.concluidos) : loading}</strong></div></div></div>
         <div className="progress-caption"><span>Taxa de conclusão</span><strong>{formatPercent(processos?.taxaConclusao ?? null)}</strong></div><div className="progress-bar"><span style={{ width: `${(processos?.taxaConclusao ?? 0) * 100}%` }} /></div>
         <p className="panel-footnote" title={METRIC_HELP.desconsiderados}>{m ? <>{formatInt(m.desconsiderados)} desconsiderado(s) — suspensos ou com chargeback, fora das métricas.{m.desconsiderados > 0 && <> <button type="button" className="inline-link" onClick={() => navigate("clientes", "desconsiderados")}>Ver quais</button></>}</> : ""}</p>
       </section>
@@ -624,7 +648,7 @@ function ClientsPage({ setView, selectedClient, setSelectedClient, listFilter, o
         <div className="table-wrap">
           <table>
             <thead><tr><th>Nome</th><th>CPF</th><th>Status</th><th>Tags</th><th>Atualização</th><th /></tr></thead>
-            <tbody>{filtered.length === 0 && <tr className="empty-row"><td colSpan={6}>{listFilter && !filterIds ? "Carregando..." : listFilter ? "Nenhum cliente nesta situação. Tudo em dia!" : "Nenhum cliente encontrado."}</td></tr>}{visible.map((client) => <tr key={client.name} onClick={() => { setSelectedClient(client); setView("client-detail"); }}><td><div className="table-person"><span className="avatar avatar-gradient">{client.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><strong>{client.name}</strong></div></td><td>{client.cpf}</td><td><StatusPill tone={client.tone}>{client.status}</StatusPill></td><td><div className="tags-container">{client.tags && client.tags.length > 0 ? client.tags.map((tag) => <span key={tag} className="client-tag">{tag}</span>) : <span className="no-tags">-</span>}</div></td><td className="muted-cell">{client.updated}</td><td><button className="row-more icon-button" aria-label="Abrir cliente"><ChevronRight size={17} /></button></td></tr>)}</tbody>
+            <tbody>{filtered.length === 0 && <tr className="empty-row"><td colSpan={6}>{listFilter && !filterIds ? "Carregando..." : listFilter ? "Nenhum cliente nesta situação." : "Nenhum cliente encontrado."}</td></tr>}{visible.map((client) => <tr key={client.name} onClick={() => { setSelectedClient(client); setView("client-detail"); }}><td><div className="table-person"><span className="avatar avatar-gradient">{client.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><strong>{client.name}</strong></div></td><td>{client.cpf}</td><td><StatusPill tone={client.tone}>{client.status}</StatusPill></td><td><div className="tags-container">{client.tags && client.tags.length > 0 ? client.tags.map((tag) => <span key={tag} className="client-tag">{tag}</span>) : <span className="no-tags">-</span>}</div></td><td className="muted-cell">{client.updated}</td><td><button className="row-more icon-button" aria-label="Abrir cliente"><ChevronRight size={17} /></button></td></tr>)}</tbody>
           </table>
         </div>
         <Pager {...pagination} noun="clientes" />
@@ -632,7 +656,6 @@ function ClientsPage({ setView, selectedClient, setSelectedClient, listFilter, o
       {registrationOpen &&<div className="hub-modal-backdrop" onClick={() => setRegistrationOpen(false)}>
         <section className="hub-modal" role="dialog" aria-modal="true" aria-labelledby="client-registration-title" onClick={(event) => event.stopPropagation()}>
           <button type="button" className="drawer-close icon-button" onClick={() => setRegistrationOpen(false)} aria-label="Fechar cadastro"><X size={18} /></button>
-          <span className="eyebrow saleshub-eyebrow">Carteira de clientes</span>
           <h2 id="client-registration-title">Cadastrar cliente</h2>
           <form onSubmit={registerClient}>
             <div className="new-sale-grid">
@@ -898,9 +921,13 @@ export default function Home() {
     }).finally(() => setSessionChecked(true));
   }, []);
 
+  // Right after signing in, a curtain with the brand mark covers the portal while it loads, then opens (PortalReveal).
+  const [revealing, setRevealing] = useState(false);
+
   function handleLogin() {
     supabase.auth.getSession().then(({ data }) => {
       applySession(data.session);
+      if (!prefersReducedMotion()) setRevealing(true);
       setLoggedIn(true);
     });
   }
@@ -920,55 +947,64 @@ export default function Home() {
     setMustChangePassword(false);
   }
 
-  if (!sessionChecked) return <BrandLoader />;
-  if (!loggedIn) return <LoginScreen onLogin={handleLogin} />;
-  if (mustChangePassword) return <ChangePasswordScreen onDone={() => setMustChangePassword(false)} onLogout={handleLogout} />;
-  if (isClientUser) return <ClientPortal onLogout={handleLogout} />;
-  if (acessoQuery.isPending) return <BrandLoader />;
-  if (acessoQuery.data?.kind === "pending") {
+  // The same tree with or without the curtain, so the portal is not remounted when it opens. Under the
+  // curtain a part of the portal that is still downloading waits behind it (no loading screen swap).
+  return <>
+    <Suspense fallback={revealing ? null : <BrandLoader />}>{renderScreen()}</Suspense>
+    {revealing && <PortalReveal onDone={() => setRevealing(false)} />}
+  </>;
+
+  function renderScreen() {
+    if (!sessionChecked) return <BrandLoader />;
+    if (!loggedIn) return <LoginScreen onLogin={handleLogin} />;
+    if (mustChangePassword) return <ChangePasswordScreen onDone={() => setMustChangePassword(false)} onLogout={handleLogout} />;
+    if (isClientUser) return <ClientPortal onLogout={handleLogout} />;
+    if (acessoQuery.isPending) return <BrandLoader />;
+    if (acessoQuery.data?.kind === "pending") {
+      return (
+        <main className="client-portal-center">
+          <div className="login-panel-inner">
+            <ZentryLogo size="md" />
+            <h2>Acesso em análise</h2>
+            <p className="login-subtitle">Sua conta foi criada, mas ainda precisa ser liberada pela administração da Zentry Soluções para abrir a área da equipe. Assim que for liberada, é só entrar de novo.</p>
+            <button className="link-button" type="button" onClick={handleLogout}>Sair</button>
+          </div>
+        </main>
+      );
+    }
     return (
-      <main className="client-portal-center">
-        <div className="login-panel-inner">
-          <ZentryLogo size="md" />
-          <h2>Acesso em análise</h2>
-          <p className="login-subtitle">Sua conta foi criada, mas ainda precisa ser liberada pela administração da Zentry Soluções para abrir a área da equipe. Assim que for liberada, é só entrar de novo.</p>
-          <button className="link-button" type="button" onClick={handleLogout}>Sair</button>
-        </div>
-      </main>
+      <div className="app-shell">
+        {mobileMenu && (
+          <>
+            <div className="sidebar-overlay visible" onClick={() => setMobileMenu(false)} />
+            <div className="mobile-sidebar mobile-sidebar-open">
+              <div className="mobile-sidebar-head">
+                <MenuMark />
+                <button className="icon-button" onClick={() => setMobileMenu(false)} aria-label="Fechar menu">
+                  <X size={20} />
+                </button>
+              </div>
+              <Sidebar view={view} setView={(next) => { navigate(next); setMobileMenu(false); }} collapsed={false} setCollapsed={() => undefined} onLogout={handleLogout} userName={userName} isAdmin={isAdmin} />
+            </div>
+          </>
+        )}
+        <Sidebar view={view} setView={(next) => navigate(next)} collapsed={collapsed} setCollapsed={setCollapsed} onLogout={handleLogout} userName={userName} isAdmin={isAdmin} />
+        <main className={`main-area ${collapsed ? "main-area-wide" : ""}`}>
+          <Topbar view={view} onMenu={() => setMobileMenu(true)} onSearch={() => navigate("clientes")} onNotifications={() => navigate("atendimento")} onWhatsApp={() => navigate(isAdmin ? "admin" : "atendimento")} userName={userName} />
+          <PowerBanner />
+          <StaffPushBanner />
+          {view === "dashboard" && <Dashboard navigate={navigate} userName={userName} />}
+          {view === "clientes" && <ClientsPage setView={setView} selectedClient={selectedClient} setSelectedClient={setSelectedClient} listFilter={clientFilter} onClearFilter={() => setListFilter(null)} />}
+          {view === "client-detail" && selectedClient && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><ClientDetail client={selectedClient} onBack={() => setView("clientes")} isAdmin={isAdmin} /></Suspense>}
+          {view === "chargebacks" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><ChargebacksPage listFilter={chargebackFilter} onClearFilter={() => setListFilter(null)} isAdmin={isAdmin} draft={chargebackDraft} onDraftUsed={clearChargebackDraft} onOpenClient={openClientRow} /></Suspense>}
+          {view === "atendimento" && <AtendimentoPage isAdmin={isAdmin} />}
+          {view === "termos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><TermosPage onOpenClient={openClientRow} /></Suspense>}
+          {view === "laudos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><LaudosPage onOpenClient={openClientRow} /></Suspense>}
+          {view === "admin" && isAdmin && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><AdminPage /></Suspense>}
+          {view === "saleshub" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><SalesHubPage userName={userName} isAdmin={isAdmin} onChargeback={(draft) => { setChargebackDraft(draft); navigate("chargebacks"); }} /></Suspense>}
+          <footer className="app-footer">© 2026 Zentry Soluções <span>·</span> Todos os direitos reservados.</footer>
+        </main>
+      </div>
     );
   }
-  return (
-    <div className="app-shell">
-      {mobileMenu && (
-        <>
-          <div className="sidebar-overlay visible" onClick={() => setMobileMenu(false)} />
-          <div className="mobile-sidebar mobile-sidebar-open">
-            <div className="mobile-sidebar-head">
-              <Logo size="md" />
-              <button className="icon-button" onClick={() => setMobileMenu(false)} aria-label="Fechar menu">
-                <X size={20} />
-              </button>
-            </div>
-            <Sidebar view={view} setView={(next) => { navigate(next); setMobileMenu(false); }} collapsed={false} setCollapsed={() => undefined} onLogout={handleLogout} userName={userName} isAdmin={isAdmin} />
-          </div>
-        </>
-      )}
-      <Sidebar view={view} setView={(next) => navigate(next)} collapsed={collapsed} setCollapsed={setCollapsed} onLogout={handleLogout} userName={userName} isAdmin={isAdmin} />
-      <main className={`main-area ${collapsed ? "main-area-wide" : ""}`}>
-        <Topbar view={view} onMenu={() => setMobileMenu(true)} onSearch={() => navigate("clientes")} onNotifications={() => navigate("atendimento")} onWhatsApp={() => navigate(isAdmin ? "admin" : "atendimento")} userName={userName} />
-        <PowerBanner />
-        <StaffPushBanner />
-        {view === "dashboard" && <Dashboard navigate={navigate} userName={userName} />}
-        {view === "clientes" && <ClientsPage setView={setView} selectedClient={selectedClient} setSelectedClient={setSelectedClient} listFilter={clientFilter} onClearFilter={() => setListFilter(null)} />}
-        {view === "client-detail" && selectedClient && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><ClientDetail client={selectedClient} onBack={() => setView("clientes")} isAdmin={isAdmin} /></Suspense>}
-        {view === "chargebacks" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><ChargebacksPage listFilter={chargebackFilter} onClearFilter={() => setListFilter(null)} isAdmin={isAdmin} draft={chargebackDraft} onDraftUsed={clearChargebackDraft} onOpenClient={openClientRow} /></Suspense>}
-        {view === "atendimento" && <AtendimentoPage isAdmin={isAdmin} />}
-        {view === "termos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><TermosPage onOpenClient={openClientRow} /></Suspense>}
-        {view === "laudos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><LaudosPage onOpenClient={openClientRow} /></Suspense>}
-        {view === "admin" && isAdmin && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><AdminPage /></Suspense>}
-        {view === "saleshub" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><SalesHubPage userName={userName} isAdmin={isAdmin} onChargeback={(draft) => { setChargebackDraft(draft); navigate("chargebacks"); }} /></Suspense>}
-        <footer className="app-footer">© 2026 Zentry Soluções <span>·</span> Todos os direitos reservados.</footer>
-      </main>
-    </div>
-  );
 }

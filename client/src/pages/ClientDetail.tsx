@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, FileText, Phone, Mail, Upload, Trash2, Sparkles, AlertTriangle, ChevronDown, Clock, Plus, Download, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, FileText, Phone, Mail, Upload, Trash2, AlertTriangle, ChevronDown, Clock, Plus, Download, RefreshCw, FileSpreadsheet } from "lucide-react";
 import LaudoDialog from "@/components/LaudoDialog";
 import { MAX_DOCUMENT_BYTES, OLD_SYSTEM_TAG, PROCESS_STATUSES, caseSummary, formatFileSize } from "@shared/processo";
 import { Button } from "@/components/ui/button";
@@ -356,8 +356,8 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
           {/* Automatic Summary */}
           <section className="action-panel">
             <div className="panel-header">
-              <Sparkles size={18} />
-              <h3>Resumo automático</h3>
+              <FileText size={18} />
+              <h3>Resumo do caso</h3>
             </div>
             {summary ? (
               <p className="panel-content">{summary}</p>

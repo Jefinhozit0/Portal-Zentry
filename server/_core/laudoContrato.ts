@@ -1,11 +1,13 @@
 import { getDocumentProxy } from "unpdf";
+import { isContratoIaConfigured, lerContratoComIa } from "./contratoIa";
+import { ocrPages } from "./contratoOcr";
 import { type Encargos, type LaudoDados, emptyLaudo, mesNumero, parseBRL } from "@shared/laudo";
 import { type Modalidade, modalidadeDoTitulo } from "@shared/notificacao";
 
 /**
  * Reads a bank contract (CCB) PDF and fills what it can of the laudo. Works on the text of the PDF,
- * line by line, looking for the labels banks use; a scanned contract (image only) has no text and
- * comes back empty. Whatever is not found stays blank for the team to type in.
+ * line by line, looking for the labels banks use; a scanned contract (image only) has no text, so its
+ * pages go through OCR first (see contratoOcr.ts). Whatever is not found stays blank for the team to type in.
  */
 
 type Item = { x: number; y: number; text: string };
@@ -14,12 +16,19 @@ export type Line = { page: number; y: number; items: Item[]; text: string };
 /** The title of the standard table banks must fill (Res. CMN 4.881), in capitals: clauses mention it in lowercase. */
 const QUADRO_PADRAO = /OR[ÇC]AMENTO DE OPERA[ÇC][ÃA]O DE CR[ÉE]DITO|CONDI[ÇC][ÕO]ES ESPEC[ÍI]FICAS DE OPERA[ÇC][ÃA]O DE CR[ÉE]DITO/;
 
+/** Bradesco Financiamentos: the data is in a "Quadro Resumo" after six pages of clauses, and runs over the next pages up to Anexo I. */
+const QUADRO_RESUMO = /^Quadro Resumo$/i;
+const QUADRO_RESUMO_PAGES = 4;
+
 /**
  * The first 3 pages, plus the page of the standard table wherever it is (Digimais puts it on page 11,
  * after the cadastro and the CCB), which then comes first. The other pages are clauses and the
  * insurance proposal, whose amounts ("Valor cálculo Seguro") would be taken for the contract's.
+ * A Quadro Resumo past the first pages comes first with the pages that continue it.
+ * A scan has no text: with useOcr its pages are read by OCR, and all of them are kept, because scanned
+ * pages often come out of order or with some missing; without it, no lines and scanned: true.
  */
-async function readLines(bytes: Uint8Array, firstPages = 3, maxPages = 20): Promise<Line[]> {
+async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, maxPages = 20): Promise<{ lines: Line[]; scanned: boolean }> {
   const pdf = await getDocumentProxy(bytes);
   const pages: Line[][] = [];
   for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, maxPages); pageNumber++) {
@@ -41,10 +50,16 @@ async function readLines(bytes: Uint8Array, firstPages = 3, maxPages = 20): Prom
     }
     pages.push(pageLines);
   }
-  const quadro = pages.findIndex((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text)));
-  const kept = pages.filter((_, index) => index < firstPages || index === quadro);
-  if (quadro > 0) kept.sort((a, b) => (a === pages[quadro] ? -1 : b === pages[quadro] ? 1 : 0));
-  return kept.flat();
+  if (pages.every((page) => page.length === 0)) {
+    if (!useOcr) return { lines: [], scanned: true };
+    const scanned = await ocrPages(pdf, maxPages);
+    const quadro = scanned.find((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text) || QUADRO_RESUMO.test(line.text)));
+    return { lines: (quadro ? [quadro, ...scanned.filter((page) => page !== quadro)] : scanned).flat(), scanned: true };
+  }
+  const padrao = pages.findIndex((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text)));
+  const resumo = pages.findIndex((page, index) => index >= firstPages && page.slice(0, 12).some((line) => QUADRO_RESUMO.test(line.text)));
+  const quadro = padrao >= 0 ? pages.slice(padrao, padrao + 1) : resumo >= 0 ? pages.slice(resumo, resumo + QUADRO_RESUMO_PAGES) : [];
+  return { lines: [...quadro, ...pages.filter((page, index) => index < firstPages && !quadro.includes(page))].flat(), scanned: false };
 }
 
 /** Amounts written with R$ on the line, in order; without R$, plain numbers that are not percentages. */
@@ -102,6 +117,148 @@ function textAfter(lines: Line[], label: RegExp, stop?: RegExp) {
     if (value) return value;
   }
   return "";
+}
+
+/**
+ * A numbered cell label of the Quadro Resumo: "3 - Valor das Parcelas", "2.6 – Função", "5- Valor Total…".
+ * OCR may read the cell border before it ("|3- Valor das Parcelas"), a comma for the dot ("4,5 - Valor…")
+ * or lose the number, leaving the dash before the label's capital ("- Combustível/Motor").
+ */
+const CELL_LABEL = /^[|[(/!]?(?:\d{1,2}(?:[.,]\d{1,2})?\s*[-–]|[-–]\s*[A-ZÀ-Ú])/;
+
+/**
+ * The value of a Quadro Resumo cell (Bradesco Financiamentos): the label on top, the value on the line
+ * right below, in the same column, which ends where the next label of the row starts.
+ * "1 - Taxa de Juros Efetiva" over "2,87 % a.m. 41,17 % a.a." gives "2,87 % a.m. 41,17 % a.a.".
+ * A text PDF gives the label as one item, OCR as one item per word: the label may start at any item
+ * and run over the next ones.
+ */
+function cellBelow(lines: Line[], label: RegExp, accept: (value: string) => boolean = () => true) {
+  const joinedFrom = (items: Item[], index: number) => items.slice(index).map((item) => item.text).join(" ");
+  for (const line of lines) {
+    for (let index = 0; index < line.items.length; index++) {
+      const match = joinedFrom(line.items, index).match(label);
+      if (!match) continue;
+      // The items the label covers, then the next label of the row.
+      let covered = 0;
+      for (let length = -1; index + covered < line.items.length && length < match[0].trimEnd().length; covered++) length += 1 + line.items[index + covered].text.length;
+      const after = line.items.slice(index + covered);
+      const next = after.findIndex((_, at) => CELL_LABEL.test(joinedFrom(after, at)));
+      // A label whose number OCR garbled ("o - Número" for "2.8 - Número") starts at that garbled bit.
+      const start = /^[-–]/.test(line.items[index].text) && index > 0 && line.items[index - 1].text.length <= 4 ? index - 1 : index;
+      const left = line.items[start].x - 4;
+      // Same for the next label: "E - Cidade" ends the "Bairro" cell at the "E".
+      const end = next > 0 && /^[-–]/.test(after[next].text) && after[next - 1].text.length <= 4 ? next - 1 : next;
+      const right = (end >= 0 ? after[end].x : Infinity) - 4;
+      // The next row of labels is ~30 points below; the value, ~14.
+      const value = lines
+        .filter((other) => other.page === line.page && other.y < line.y && line.y - other.y < 22)
+        .sort((a, b) => b.y - a.y)
+        .map((other) => other.items.filter((item) => item.x >= left && item.x < right && !CELL_LABEL.test(item.text)).map((item) => item.text).join(" "))
+        .find(Boolean);
+      // OCR can match a label inside a clause ("…Quadro Resumo - IV - 4.5 - Valor Total de IOF do Bem e…"): accept says when the value is the cell's.
+      if (value && accept(value)) return value.replace(/\s+/g, " ").trim();
+    }
+  }
+  return "";
+}
+
+/** "12/11/2024" + 30 → "12/12/2024"; "" if the date can't be read. */
+function somarDias(data: string, dias: number) {
+  const [dia, mes, ano] = data.split("/").map(Number);
+  if (!dia || !mes || !ano) return "";
+  const date = new Date(Date.UTC(ano, mes - 1, dia + dias));
+  return `${String(date.getUTCDate()).padStart(2, "0")}/${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`;
+}
+
+/** "469,188.988-41" (OCR) or "058.956.688-10" → "469.188.988-41"; anything that is not 11 digits stays as it came. */
+function cpfFormat(text: string) {
+  const digits = text.replace(/\D/g, "");
+  return digits.length === 11 ? `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}` : text;
+}
+
+/**
+ * The vehicle as Bradesco's Anexo I lists it, under "Item(ns) Financiado(s)", in that column, on up to
+ * four lines ("NISSAN" / "MARCH FLEX COM" / "SV 1.6 16V FLEXSTART A/G"), before the insurance ("*seg Prot")
+ * or the "D. Data de Emissão" row. For a scan whose Quadro Resumo lost the Marca/Modelo labels.
+ */
+function anexoVeiculo(lines: Line[]) {
+  const header = lines.find((line) => /Item\(?ns\)?\s*Financiad/i.test(line.text));
+  if (!header) return "";
+  const at = header.items.findIndex((item) => /Financiad/i.test(item.text));
+  const left = header.items[0].x, right = (header.items[at + 1]?.x ?? Infinity) - 4;
+  const parts: string[] = [];
+  for (const line of lines.filter((other) => other.page === header.page && other.y < header.y && header.y - other.y < 90).sort((a, b) => b.y - a.y)) {
+    // Header lines of the other columns ("Financiamento do(s) Bem(ns)") start far to the right.
+    const column = line.items[0].x < left + 60 ? line.items.filter((item) => item.x < right).map((item) => item.text).join(" ") : "";
+    if (/^\*|Data de Emiss|Assinatura|^\(\d\)/i.test(column)) break;
+    if (column) parts.push(column);
+    if (parts.length === 4) break;
+  }
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The date printed in every page's footer of a Bradesco contract: "12/11/2024 17:36:34 (Horário de Brasília)".
+ * OCR garbles it on most pages ("/3///2024"), so the valid date read most often wins, when read at least twice
+ * or by the only page that got it.
+ */
+function dataDoRodape(lines: Line[]) {
+  const counts = new Map<string, number>();
+  for (const line of lines) {
+    const match = line.text.match(/(\d{2})\/(\d{2})\/(\d{4})\s*\d{1,2}[:/.]?\d{2}[:/.]?\d{2}\s*\(?Hor[áa]rio/i);
+    if (!match || Number(match[1]) < 1 || Number(match[1]) > 31 || Number(match[2]) < 1 || Number(match[2]) > 12) continue;
+    const date = `${match[1]}/${match[2]}/${match[3]}`;
+    counts.set(date, (counts.get(date) ?? 0) + 1);
+  }
+  const ranked = Array.from(counts).sort((a, b) => b[1] - a[1]);
+  return ranked.length && (ranked[0][1] >= 2 || ranked.length === 1) ? ranked[0][0] : "";
+}
+
+/** What the Quadro Resumo says; only the cells that are there. Its values win over the ones read by label. */
+function quadroResumo(lines: Line[]) {
+  // A label ends at a word boundary, not at the end of its item: with OCR the next label follows on the same text.
+  // The cell's number goes as "any short bit before the dash", since OCR misreads it ("S- Valor Total Devido",
+  // "41.6 - Valor Total de IOF dos Produtos"); the words of the label tell the cells apart. The space after
+  // the dash keeps other banks' "Ano-modelo:" from passing for the "- Modelo" cell.
+  const cell = (label: string, numbered = String.raw`\S{0,5}`, accept?: (value: string) => boolean) =>
+    cellBelow(lines, new RegExp(`^[|[(/!]?${numbered}\\s*[-–]\\s+${label}\\b`, "i"), accept);
+  const amount = (label: string) => money(cell(label, undefined, (value) => money(value).length > 0))[0] ?? null;
+  // Rates never have a thousands dot: OCR's "2.06 % a.m." is 2,06.
+  const [taxaMensal, taxaAnual] = percents(cell("Taxa de Juros Efetiva", undefined, (value) => /\d\s*%/.test(value)).replace(/(\d)\.(\d{1,4})(?=\s*%)/g, "$1,$2"));
+  const iofBem = amount("Valor Total de IOF do Bem"), iofProdutos = amount("Valor Total de IOF dos Produtos");
+  const veiculo = [cell("Marca"), cell("Modelo"), cell("Vers[ãa]o")].filter(Boolean);
+  // Only the year: with OCR the cell can run into the next one ("2019 FLEX-GASOLINA").
+  const ano = [cell("Ano de Fabrica[çc][ãa]o"), cell("Ano do Modelo")].map((value) => value.match(/\b(?:19|20)\d{2}\b/)?.[0]).filter(Boolean).join("/");
+  const [rua, numero, complemento, bairro, cidade, uf, cep] = ["Endere[çc]o Residencial", "N[úu]mero", "Complemento", "Bairro", "Cidade", "UF", "CEP"].map((name) => cell(name));
+  // "Nome" and "CPF" also head the agent's and the supplier's cells: these keep their number.
+  const cpf = cell(String.raw`CPF(?:\/MF)?`, String.raw`2[.,]2`);
+  return {
+    contratante: cell("Nome", String.raw`2[.,]1`),
+    cpf: cpf && cpfFormat(cpf),
+    email: cell("E-?mail").match(EMAIL)?.[0].toLowerCase() ?? "",
+    endereco: [[rua, numero].filter(Boolean).join(", "), complemento, bairro, [cidade, uf].filter(Boolean).join("/"), cep && `CEP ${cep}`].filter(Boolean).join(" - "),
+    // Only the year is not the vehicle: then Anexo I's list of financed items, or blank.
+    garantia: veiculo.length ? [...veiculo, ano].filter(Boolean).join(" ") : (() => {
+      const anexo = anexoVeiculo(lines);
+      return anexo && !/\b(?:19|20)\d{2}\b/.test(anexo) ? [anexo, ano].filter(Boolean).join(" ") : anexo;
+    })(),
+    valorSolicitado: amount("Valor Solicitado"),
+    valorFinanciado: amount("Valor Total Devido"),
+    parcelas: Number(cell("Quantidade de Parcelas", undefined, (value) => /^\d{1,3}\b/.test(value)).match(/^\d{1,3}\b/)?.[0] ?? 0),
+    // "1 - Carência para 1º Vencimento" over "30": days from the issue date to the first payment.
+    carencia: Number(cell("Car[êe]ncia para 1[º°o]? ?Vencimento", undefined, (value) => /^\d{1,3}\b/.test(value)).match(/^\d{1,3}\b/)?.[0] ?? 0),
+    valorParcela: amount("Valor das Parcelas"),
+    // Anexo I has it too: "D. Data de Emissão" over "12/11/2024 17:36:34".
+    dataContrato: (cell(String.raw`Data de Emiss[ãa]o`) || cellBelow(lines, /^[A-Z]\.\s*Data de Emiss[ãa]o/i)).match(/\d{2}\/\d{2}\/\d{4}/)?.[0] ?? dataDoRodape(lines),
+    taxaMensal: taxaMensal ?? 0,
+    taxaAnual: taxaAnual ?? 0,
+    iof: iofBem !== null || iofProdutos !== null ? Math.round(((iofBem ?? 0) + (iofProdutos ?? 0)) * 100) / 100 : null,
+    seguros: amount("Valor de Seguros"),
+    registro: amount("Valor de Registro"),
+    cadastro: amount("Valor Tarifa de Cadastro"),
+    avaliacao: amount("Valor Tarifa Avalia[çc][ãa]o"),
+  };
 }
 
 const zeroIsAbsent = (value: number | null) => (value && value > 0 ? value : null);
@@ -183,19 +340,60 @@ function bankLine(lines: Line[]): { text: string; index: number } {
   return { text: "", index: -1 };
 }
 
-export async function lerContrato(bytes: Uint8Array): Promise<LeituraContrato> {
-  return extrairContrato(await readLines(bytes));
+/** The laudo fields that were found (the ones the team doesn't have to type). */
+export function camposEncontrados(dados: LaudoDados) {
+  return Object.entries({ ...dados, ...dados.encargos })
+    .filter(([key, value]) => key !== "encargos" && key !== "objeto" && key !== "jurosMora" && value !== "" && value !== 0 && value !== null)
+    .map(([key]) => key);
+}
+
+/** Without these the free reader didn't understand the contract, and the AI reads it instead. */
+const CAMPOS_PRINCIPAIS = ["contrato", "contratante", "valorFinanciado", "parcelas", "valorParcela", "taxaMensal"];
+
+/** The AI's reading, with the blanks it left filled from the free reader's. */
+function juntar(ia: LeituraContrato, regras: LeituraContrato): LeituraContrato {
+  const dados = { ...regras.dados, ...Object.fromEntries(Object.entries(ia.dados).filter(([, value]) => value !== "" && value !== 0)) } as LaudoDados;
+  dados.encargos = Object.fromEntries(Object.entries(ia.dados.encargos).map(([key, value]) => [key, value ?? regras.dados.encargos[key as keyof Encargos]])) as Encargos;
+  return {
+    dados, cpf: ia.cpf || regras.cpf, cnpjInstituicao: ia.cnpjInstituicao || regras.cnpjInstituicao, modalidade: ia.modalidade ?? regras.modalidade,
+    email: ia.email || regras.email, endereco: ia.endereco || regras.endereco, encontrados: camposEncontrados(dados),
+  };
+}
+
+/**
+ * The free reader first: a contract with text whose layout it knows is done in a moment, at no cost.
+ * When it misses the main fields, or the PDF is a scan, Claude reads it (contratoIa.ts) if the API is
+ * set up; without the API (or if it fails) a scan goes through OCR, which is slower and less precise.
+ * ocr / ia say how it was read, so the team knows how much to check.
+ */
+export async function lerContrato(bytes: Uint8Array): Promise<LeituraContrato & { ocr: boolean; ia: boolean }> {
+  const iaLigada = isContratoIaConfigured();
+  // pdf.js may take over the buffer it is given, and the bytes may still go to the AI or the OCR.
+  const { lines, scanned } = await readLines(bytes.slice(), !iaLigada);
+  const regras = extrairContrato(lines);
+  const completa = CAMPOS_PRINCIPAIS.every((campo) => regras.encontrados.includes(campo));
+  if (iaLigada && (scanned || !completa)) {
+    const ia = await lerContratoComIa(bytes);
+    if (ia) return { ...(scanned ? ia : juntar(ia, regras)), ocr: false, ia: true };
+    if (scanned) return { ...extrairContrato((await readLines(bytes.slice(), true)).lines), ocr: true, ia: false };
+  }
+  return { ...regras, ocr: scanned, ia: false };
 }
 
 export function extrairContrato(lines: Line[]): LeituraContrato {
   const dados = emptyLaudo();
   if (lines.length === 0) return { dados, cpf: "", cnpjInstituicao: "", modalidade: null, email: "", endereco: "", encontrados: [] };
 
-  dados.contrato = lines.map((line) => line.text.match(/(?:OPERA[ÇC][AÃ]O|CONTRATO|C[ÉE]DULA|PROPOSTA|OR[ÇC]AMENTO|CONSIGNADO)\s*(?:N[º°o.]*|n[úu]mero)\s*:?\s*(\d[\d./-]{3,})/i)?.[1]).find(Boolean) ?? "";
+  dados.contrato = lines.map((line) => line.text.match(/(?:OPERA[ÇC][AÃ]O|CONTRATO|C[ÉE]DULA|PROPOSTA|OR[ÇC]AMENTO|CONSIGNADO)\s*(?:N[º°o.]*|n[úu]mero)\s*:?\s*(\d[\d./-]{3,})/i)?.[1]).find(Boolean)
+    // Bradesco Financiamentos: "Cédula de Crédito Bancário – CCB – Pessoa Física Nº 4247432349", on top of every page.
+    ?? lines.map((line) => line.text.match(/^C[ée]dula de Cr[ée]dito Banc[áa]rio\b.{0,40}?\bN[º°o]\.?\s*(\d[\d./-]{3,})/i)?.[1]).find(Boolean)
+    ?? "";
   // Itaú: "-ITAU UNIBANCO HOLDING S.A. - CNPJ: …". Consignado: "Instituição Financeira: BANCO SANTANDER (BRASIL) S.A.".
   // Digimais: "Banco Digimais S.A., instituição financeira de direito privado, com sede na …".
   dados.instituicao = bankLine(lines).text
     .replace(/\s*-?\s*CNPJ.*$/i, "")
+    // Bradesco's Quadro Resumo: "Banco Bradesco Financiamentos S.A. 07.207.996/0001-50", the CNPJ in its own column.
+    .replace(/\s+\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}.*$/, "")
     .replace(/^.*?(?:Institui[çc][ãa]o Financeira|Credora?)\s*:\s*/i, "")
     .replace(/(\bS\.?\s?\/?A\.?)\s*,.*$/i, "$1")
     .replace(/^[\s-]+/, "")
@@ -217,10 +415,10 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
     .replace(/\s*\bModelo\s*:\s*/i, " ").replace(/\s+/g, " ").trim();
 
   dados.valorSolicitado = amountFor(lines, [/Valor Solicitado/i, /Valor L[íi]quido Liberado/i, /Valor (?:l[íi]quido )?(?:do )?(?:cr[ée]dito|empr[ée]stimo) liberado/i, /Valor liberado/i, /Valor (?:l[íi]quido )?do cr[ée]dito/i]) ?? 0;
-  dados.valorFinanciado = amountFor(lines, [/VALOR TOTAL CONTRATADO/i, /Valor total (?:do )?financiad/i, /Total financiado/i, /Valor (?:do )?financiamento/i, /Valor do Empr[ée]stimo\s*\(financiado\)/i], /sem impostos/i) ?? 0;
+  dados.valorFinanciado = amountFor(lines, [/VALOR TOTAL CONTRATADO/i, /Valor total (?:do )?financiad/i, /Total financiado/i, /Valor (?:do )?financiamento/i, /Valor do Empr[ée]stimo\s*\(financiado\)/i, /Valor Total do Financiamento/i], /sem impostos/i) ?? 0;
   dados.valorParcela = (() => {
-    const line = find(lines, /Valor (?:de cada|da|das) (?:parcela|presta[çc][ãa]o)/i);
-    const values = line ? money(line.text) : [];
+    // The first such line with an amount: Bradesco's Quadro Resumo has the label alone, its Anexo I "8. Valor da Parcela R$ 1.307,09".
+    const values = lines.filter((line) => /Valor (?:de cada|da|das) (?:parcela|presta[çc][ãa]o)/i.test(line.text)).map((line) => money(line.text)).find((found) => found.length) ?? [];
     return values.length ? values[values.length - 1] : 0;
   })();
   dados.parcelas = (() => {
@@ -277,16 +475,24 @@ export function extrairContrato(lines: Line[]): LeituraContrato {
   };
   dados.encargos = encargos;
 
-  const encontrados = Object.entries({ ...dados, ...encargos })
-    .filter(([key, value]) => key !== "encargos" && key !== "objeto" && key !== "jurosMora" && value !== "" && value !== 0 && value !== null)
-    .map(([key]) => key);
+  const quadro = quadroResumo(lines);
+  for (const key of ["contratante", "garantia", "dataContrato"] as const) if (quadro[key]) dados[key] = quadro[key];
+  for (const key of ["valorSolicitado", "valorFinanciado", "parcelas", "valorParcela", "taxaMensal", "taxaAnual", "iof"] as const) if (quadro[key]) dados[key] = quadro[key];
+  for (const key of ["seguros", "registro", "cadastro", "avaliacao"] as const) if (quadro[key] !== null) encargos[key] = zeroIsAbsent(quadro[key]);
+  // Bradesco gives the grace period instead of the date: the accountant counts it from the issue date (12/11/2024 + 30 = 12/12/2024).
+  if (!dados.primeiroVencimento && dados.dataContrato && quadro.carencia > 0) dados.primeiroVencimento = somarDias(dados.dataContrato, quadro.carencia);
+
+  const encontrados = camposEncontrados(dados);
   // Stellantis: "CPF/CNPJ do(a) solicitante: 859.107.164-68".
-  const cpf = lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?(?:\s+do\s*(?:\(a\))?\s+[a-z()]+)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "";
+  const cpf = quadro.cpf || (lines.map((line) => line.text.match(/CPF(?:\/CNPJ)?(?:\s+do\s*(?:\(a\))?\s+[a-z()]+)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i)?.[1]).find(Boolean) ?? "");
   // The bank's CNPJ is on its line, or alone on the line right below it (Stellantis).
   const bank = bankLine(lines);
   const cnpjOf = (text?: string) => text?.match(/CNPJ(?:\s+sob)?(?:\s*n[º°o]\.?)?\s*:?\s*(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/i)?.[1];
-  const cnpjInstituicao = cnpjOf(bank.text) ?? (bank.index >= 0 ? cnpjOf(lines[bank.index + 1]?.text) : undefined) ?? "";
+  const cnpjInstituicao = cnpjOf(bank.text) ?? (bank.index >= 0 ? cnpjOf(lines[bank.index + 1]?.text) : undefined)
+    ?? bank.text.match(/\b(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\b/)?.[1] ?? "";
   // The title sits in the first lines of the main page ("CÉDULA DE CRÉDITO BANCÁRIO - CRÉDITO PESSOAL…", "…CRÉDITO DIRETO AO CONSUMIDOR (CDC) – VEÍCULOS").
-  const modalidade = modalidadeDoTitulo(lines.filter((line) => line.page === lines[0].page).slice(0, 8).map((line) => line.text).join(" "));
-  return { dados, cpf, cnpjInstituicao, modalidade, email: clientEmail(lines), endereco: clientAddress(lines, dados.contratante), encontrados };
+  // Bradesco's title says only "Pessoa Física": page 1 says what it is ("corresponde ao financiamento para aquisição de bem(ns)").
+  const titulo = (page: number) => lines.filter((line) => line.page === page).slice(0, 8).map((line) => line.text).join(" ");
+  const modalidade = modalidadeDoTitulo(titulo(lines[0].page)) ?? (lines[0].page !== 1 ? modalidadeDoTitulo(titulo(1)) : null);
+  return { dados, cpf, cnpjInstituicao, modalidade, email: quadro.email || clientEmail(lines), endereco: quadro.endereco || clientAddress(lines, dados.contratante), encontrados };
 }

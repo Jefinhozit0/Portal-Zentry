@@ -43,11 +43,11 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
   async function readContract() {
     const file = await pickPdf(MAX_DOCUMENT_BYTES, (name) => toast.error(`${name} passa de 10 MB.`));
     if (!file) return;
-    setSource(`Lendo ${file.name}...`);
+    setSource(`Lendo ${file.name}... Se for um contrato escaneado, leva cerca de 1 minuto.`);
     try {
-      const { dados, cpf, cnpjInstituicao, modalidade: lida, email, endereco, encontrados } = await lerContrato.mutateAsync({ conteudo: file.base64 });
+      const { dados, cpf, cnpjInstituicao, modalidade: lida, email, endereco, encontrados, ocr, ia } = await lerContrato.mutateAsync({ conteudo: file.base64 });
       if (encontrados.length === 0) {
-        setSource(`Não encontrei texto em ${file.name} (pode ser um contrato escaneado). Preencha os dados à mão.`);
+        setSource(`Não encontrei texto em ${file.name} nem lendo as imagens das páginas. Preencha os dados à mão.`);
         return;
       }
       if (lida) setModalidade(lida);
@@ -60,7 +60,10 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
         banco: bancoConhecido(dados.instituicao, cnpjInstituicao)?.nome ?? (dados.instituicao || current.banco),
       }));
       const faltando = [!email && "e-mail", !endereco && "endereço", endereco && !/\d{5}-?\d{3}/.test(endereco) && "CEP"].filter(Boolean);
-      setSource(`Dados lidos de ${file.name}. ${faltando.length ? `Complete: ${faltando.join(", ")}.` : "Confira antes de gerar."}`);
+      const lidos = ia
+        ? `Dados lidos de ${file.name} pela IA (modelo de contrato novo ou escaneado): confira tudo com o contrato.`
+        : ocr ? `Dados lidos de ${file.name}, um contrato escaneado: confira tudo com o contrato, a leitura de imagem pode trocar algum número.` : `Dados lidos de ${file.name}.`;
+      setSource(`${lidos} ${faltando.length ? `Complete: ${faltando.join(", ")}.` : ocr || ia ? "" : "Confira antes de gerar."}`.trim());
     } catch (error) {
       setSource("");
       toast.error(error instanceof Error ? error.message : "Não foi possível ler o contrato.");
@@ -146,7 +149,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
     {chosen
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosen.name} (o cliente vê no portal)
+          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso para assinar)
         </label>
       : clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: o termo é gerado, mas não fica anexado a nenhum cadastro.</p>}
 

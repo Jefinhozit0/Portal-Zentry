@@ -46,6 +46,9 @@ export const ENV = {
   whatsappTemplateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? "pt_BR",
   whatsappApiVersion: process.env.WHATSAPP_API_VERSION ?? "v23.0",
   isProduction: process.env.NODE_ENV === "production",
+  // Contracts the free reader can't handle (new layouts, scans) are read by Claude when this is set.
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  contratoIaModel: process.env.CONTRATO_IA_MODEL || "claude-haiku-5-5",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
 };

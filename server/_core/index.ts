@@ -71,7 +71,7 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = ENV.whatsappProvider === "web" ? preferredPort : await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
@@ -79,11 +79,10 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    if (ENV.whatsappProvider === "web") {
+      startWhatsAppWeb().catch((error) => console.error("[WhatsApp] Não foi possível iniciar a conexão:", error));
+    }
   });
-
-  if (ENV.whatsappProvider === "web") {
-    startWhatsAppWeb().catch((error) => console.error("[WhatsApp] Não foi possível iniciar a conexão:", error));
-  }
 
   // Daily backup and access reminders. BACKGROUND_JOBS=off turns them off (e.g. on a test copy).
   if ((process.env.BACKGROUND_JOBS ?? "on").toLowerCase() !== "off") startBackgroundJobs();

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, Clock3, FileCheck2, Search, Send, UserX, Users } from "lucide-react";
+import { ChevronRight, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { showAccessResult } from "@/lib/accessToast";
@@ -60,11 +60,11 @@ export default function TermosPage({ onOpenClient }: { onOpenClient: (row: Recor
     if (row) onOpenClient(row);
   }
 
-  const kpis: { label: string; value: string; detail: string; icon: typeof Users; filter: Filter; alert?: boolean }[] = [
-    { label: "Taxa de aceite", value: t ? formatPercent(t.percent) : loading, detail: t ? `${formatInt(t.accepted)} de ${formatInt(t.withLogin)} clientes com login` : "", icon: FileCheck2, filter: "aceito" },
-    { label: "Aceitaram", value: t ? formatInt(t.accepted) : loading, detail: t ? `${formatInt(t.acceptedLast7Days)} nos últimos 7 dias` : "", icon: CheckCircle2, filter: "aceito" },
-    { label: "Pendentes", value: t ? formatInt(t.pending) : loading, detail: t ? (t.pending ? "Têm login, mas ainda não aceitaram" : "Ninguém pendente") : "", icon: Clock3, filter: "pendentes", alert: (t?.pending ?? 0) > 0 },
-    { label: "Sem login", value: t ? formatInt(t.withoutLogin) : loading, detail: t ? (t.withoutEmail ? `${formatInt(t.withoutEmail)} sem e-mail cadastrado` : "Todos têm e-mail") : "", icon: UserX, filter: "sem-login", alert: (t?.withoutLogin ?? 0) > 0 },
+  const kpis: { label: string; value: string; detail: string; filter: Filter; alert?: boolean }[] = [
+    { label: "Taxa de aceite", value: t ? formatPercent(t.percent) : loading, detail: t ? `${formatInt(t.accepted)} de ${formatInt(t.withLogin)} clientes com login` : "", filter: "aceito" },
+    { label: "Aceitaram", value: t ? formatInt(t.accepted) : loading, detail: t ? `${formatInt(t.acceptedLast7Days)} nos últimos 7 dias` : "", filter: "aceito" },
+    { label: "Pendentes", value: t ? formatInt(t.pending) : loading, detail: t ? (t.pending ? "Têm login, mas ainda não aceitaram" : "Ninguém pendente") : "", filter: "pendentes", alert: (t?.pending ?? 0) > 0 },
+    { label: "Sem login", value: t ? formatInt(t.withoutLogin) : loading, detail: t ? (t.withoutEmail ? `${formatInt(t.withoutEmail)} sem e-mail cadastrado` : "Todos têm e-mail") : "", filter: "sem-login", alert: (t?.withoutLogin ?? 0) > 0 },
   ];
 
   const passwordCreated = t ? t.withLogin - t.awaitingFirstAccess - t.expiredLink : 0;
@@ -90,8 +90,8 @@ export default function TermosPage({ onOpenClient }: { onOpenClient: (row: Recor
     {reportQuery.error && <p className="dashboard-error" role="alert">Não foi possível carregar os termos agora: {reportQuery.error.message}</p>}
 
     <div className="kpi-grid">
-      {kpis.map(({ label, value, detail, icon: Icon, filter: target, alert }) => <button key={label} type="button" className={`kpi-card ${alert ? "kpi-card-alert" : ""}`} onClick={() => setFilter(target)}>
-        <span className="kpi-head"><span>{label}</span><span className="kpi-icon"><Icon size={17} /></span></span>
+      {kpis.map(({ label, value, detail, filter: target, alert }) => <button key={label} type="button" className={`kpi-card ${alert ? "kpi-card-alert" : ""}`} onClick={() => setFilter(target)}>
+        <span className="kpi-head">{label}</span>
         <strong className={t || reportQuery.error ? undefined : "is-loading"}>{value}</strong>
         <small>{detail}</small>
       </button>)}
@@ -152,7 +152,7 @@ export default function TermosPage({ onOpenClient }: { onOpenClient: (row: Recor
         <table>
           <thead><tr><th>Cliente</th><th>Situação</th><th>Login enviado</th><th>Último acesso</th><th>Aceite</th><th>Notificações</th><th /></tr></thead>
           <tbody>
-            {report && visible.length === 0 && <tr className="empty-row"><td colSpan={7}>{filter === "pendentes" ? "Nenhum cliente pendente. Tudo em dia!" : "Nenhum cliente nesta situação."}</td></tr>}
+            {report && visible.length === 0 && <tr className="empty-row"><td colSpan={7}>{filter === "pendentes" ? "Nenhum cliente pendente." : "Nenhum cliente nesta situação."}</td></tr>}
             {pagination.visible.map((row) => {
               const info = SITUATIONS[row.situation];
               const waiting = daysSince(row.linkSentAt ?? row.loginCreatedAt);

@@ -77,7 +77,7 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
     {chosen
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosen.name} (o cliente vê no portal)
+          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso para assinar)
         </label>
       : clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: a procuração é gerada, mas não fica anexada a nenhum cadastro.</p>}
 
