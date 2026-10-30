@@ -3441,6 +3441,8 @@ tbody tr.empty-row:hover { background: transparent; }
 .laudo-form-page > .new-sale-grid { margin: 18px 0 8px; }
 .laudo-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .laudo-hint { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; }
+/* A field's live note (CEP lookup) under its input */
+.new-sale-grid .field-status { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 400; }
 .laudos-list { display: grid; padding: 0 20px 16px; }
 .laudos-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
 .laudos-item:first-child { border-top: 0; }
