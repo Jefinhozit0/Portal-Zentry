@@ -4,7 +4,7 @@
  * that print it, so no document goes out with a blank CNPJ or address.
  *
  * Images (optional): server/assets/notificacao/assinatura.png is the representative's signature that
- * closes the notificação com contrato, over the line with name and CNPJ (without it, the line is blank);
+ * closes the notificações (manual and com contrato), over the line with name and CNPJ (without it, the line is blank);
  * server/assets/laudo/assinatura.png is the accountant's signature (without it, a blank line to sign).
  */
 export const EMPRESA = {
