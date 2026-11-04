@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ChevronRight, FileText, History, Link2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronRight, FileText, History, Link2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { CHARGEBACK_STATUSES, brToIsoDate, parseBrlInput, type ChargebackDraft, type ChargebackHistoryEntry, type ChargebackStatus } from "@shared/chargebacks";
+import { CHARGEBACK_PERIODS, CHARGEBACK_STATUSES, brToIsoDate, chargebackDate, inDateRange, isoToBrDate, parseBrlInput, periodRange, saoPauloDate, summarizeChargebacks, type ChargebackDraft, type ChargebackHistoryEntry, type ChargebackPeriod, type ChargebackStatus } from "@shared/chargebacks";
 import { CHARGEBACK_LIST_FILTERS, type ChargebackListFilter } from "@shared/dashboard";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ListFilterBar, StatusPill } from "./Home";
 import { hubMoney } from "./salesHubData";
@@ -15,6 +16,8 @@ import { Pager } from "@/components/Pager";
 type Chargeback = {
   id: number; client: string; bank: string; amount: string; deadline: string; status: string; tone: string;
   clienteId: number | null; vendaId: number | null; observacao: string; atualizadoEm: string | null; createdAt: string | null; historico: ChargebackHistoryEntry[];
+  /** Contestation date, or the day it was registered (AAAA-MM-DD). The period filter goes by this. */
+  date: string;
 };
 type Form = { id?: number; client: string; clienteId: number | null; vendaId: number | null; bank: string; amount: string; deadline: string; oldDeadline: string; status: ChargebackStatus; observacao: string };
 
@@ -39,7 +42,52 @@ function toChargeback(row: Record<string, unknown>): Chargeback {
     atualizadoEm: typeof row.atualizado_em === "string" ? row.atualizado_em : null,
     createdAt: typeof row.created_at === "string" ? row.created_at : null,
     historico: Array.isArray(row.historico) ? (row.historico as ChargebackHistoryEntry[]) : [],
+    date: chargebackDate(row),
   };
+}
+
+const DATE_BASIS_HINT = "Vale a data da contestação; sem ela, a data de registro.";
+
+/** Sits next to the search field. The trigger always says which period the whole page is showing. */
+function PeriodFilter({ period, onChange, from, to, onFrom, onTo, rangeText }: {
+  period: ChargebackPeriod;
+  onChange: (period: ChargebackPeriod) => void;
+  from: string;
+  to: string;
+  onFrom: (value: string) => void;
+  onTo: (value: string) => void;
+  rangeText: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = CHARGEBACK_PERIODS.find((option) => option.id === period)?.label;
+  const custom = period === "personalizado";
+  const detail = rangeText || (custom ? "Escolha as datas" : "");
+  return <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <button type="button" className={`cbk-period-trigger${period !== "todos" ? " is-active" : ""}`} aria-label={`Período: ${[label, detail].filter(Boolean).join(", ")}`}>
+        <CalendarDays size={16} aria-hidden="true" />
+        <span>{label}</span>
+        {detail && <small>{detail}</small>}
+        <ChevronDown size={15} className="cbk-period-chevron" aria-hidden="true" />
+      </button>
+    </PopoverTrigger>
+    <PopoverContent align="start" sideOffset={6} className="cbk-period-menu">
+      <div className="cbk-period-options" role="group" aria-label="Período">
+        {CHARGEBACK_PERIODS.map((option) => <button key={option.id} type="button" aria-pressed={period === option.id} className={period === option.id ? "is-selected" : ""} onClick={() => { onChange(option.id); if (option.id !== "personalizado") setOpen(false); }}>
+          {option.label}
+          {period === option.id && <Check size={15} aria-hidden="true" />}
+        </button>)}
+      </div>
+      {/* Stays mounted so it can slide open; hidden from the keyboard while closed (see the CSS). */}
+      <div className={`cbk-period-custom${custom ? " is-open" : ""}`}>
+        <div className="cbk-period-dates">
+          <label>De<input type="date" value={from} onChange={(event) => onFrom(event.target.value)} /></label>
+          <label>Até<input type="date" value={to} onChange={(event) => onTo(event.target.value)} /></label>
+        </div>
+      </div>
+      <small className="cbk-period-hint">{DATE_BASIS_HINT}</small>
+    </PopoverContent>
+  </Popover>;
 }
 
 export default function ChargebacksPage({ listFilter, onClearFilter, isAdmin, draft, onDraftUsed, onOpenClient }: {
@@ -77,6 +125,9 @@ export default function ChargebacksPage({ listFilter, onClearFilter, isAdmin, dr
   const [toDelete, setToDelete] = useState<Chargeback | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [period, setPeriod] = useState<ChargebackPeriod>("todos");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   // A sale marked with chargeback in the Sales HUB arrives here as a prefilled form.
   useEffect(() => {
@@ -94,20 +145,29 @@ export default function ChargebacksPage({ listFilter, onClearFilter, isAdmin, dr
   }, [draft, clientes, clientesQuery.isLoading, onDraftUsed]);
 
   const filterIds = listFilter ? dashboardQuery.data?.listas.chargebacks[listFilter] : undefined;
-  const visible = chargebackList.filter((item) => {
+  const range = periodRange(period, saoPauloDate(new Date()), { from: customFrom, to: customTo });
+  const periodActive = !!(range.from || range.to);
+  const rangeKey = `${range.from}|${range.to}`;
+  const inPeriod = chargebackList.filter((item) => inDateRange(item.date, range));
+  // With no period the cards keep the dashboard's numbers, so both screens always agree.
+  const periodSummary = periodActive ? summarizeChargebacks(inPeriod) : null;
+  const revertidos = periodSummary ? periodSummary.revertidos : reversao?.revertidos;
+  const encerrados = periodSummary ? periodSummary.encerrados : reversao?.encerrados;
+  const rangeText = range.from && range.to ? `${isoToBrDate(range.from)} a ${isoToBrDate(range.to)}` : range.from ? `A partir de ${isoToBrDate(range.from)}` : range.to ? `Até ${isoToBrDate(range.to)}` : "";
+  const visible = inPeriod.filter((item) => {
     if (listFilter && !(filterIds ?? []).includes(item.id)) return false;
     if (statusFilter !== "todos" && item.status !== statusFilter) return false;
     const term = query.trim().toLowerCase();
     return !term || item.client.toLowerCase().includes(term) || item.bank.toLowerCase().includes(term);
   });
-  const pagination = usePagination(visible, `${query}|${statusFilter}|${listFilter}`);
+  const pagination = usePagination(visible, `${query}|${statusFilter}|${listFilter}|${rangeKey}`);
   // Old rows may carry a status that is not on the list anymore; they still get a filter button.
   const statusOptions = Array.from(new Set([...CHARGEBACK_STATUSES.map((status) => status.label), ...chargebackList.map((item) => item.status).filter(Boolean)]));
 
   function exportReport() {
     const rows = [
-      ["Cliente", "Instituição", "Valor estimado", "Prazo", "Status", "Observação", "Última alteração"],
-      ...visible.map((item) => [item.client, item.bank, item.amount, item.deadline, item.status, item.observacao, item.atualizadoEm ? formatDateTime(item.atualizadoEm) : ""]),
+      ["Cliente", "Instituição", "Data", "Valor estimado", "Prazo", "Status", "Observação", "Última alteração"],
+      ...visible.map((item) => [item.client, item.bank, item.date ? isoToBrDate(item.date) : "", item.amount, item.deadline, item.status, item.observacao, item.atualizadoEm ? formatDateTime(item.atualizadoEm) : ""]),
     ];
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([`﻿${rows.map((row) => row.map(csvCell).join(";")).join("\r\n")}`], { type: "text/csv;charset=utf-8" }));
@@ -163,12 +223,15 @@ export default function ChargebacksPage({ listFilter, onClearFilter, isAdmin, dr
   const saving = createChargeback.isPending || updateChargeback.isPending;
 
   return <div className="page-content">
-    <div className="chargeback-summary"><div title="Soma dos chargebacks revertidos registrados neste ano."><span>Valor recuperado em {cbSummary?.ano ?? new Date().getFullYear()}</span><strong>{cbSummary ? hubMoney(cbSummary.recuperadoNoAno) : "…"}</strong><small>{reversao ? `${reversao.revertidos} caso(s) revertido(s)` : "Calculando..."}</small></div><div title="Chargebacks que ainda não foram revertidos nem negados."><span>Solicitações abertas</span><strong>{cbSummary ? cbSummary.abertos : "…"}</strong><small>{chargebackList.length} registrada(s) no total</small></div><div title="Revertidos dentre os já encerrados (revertidos + negados)."><span>Taxa de sucesso</span><strong>{cbSummary ? formatPercent(cbSummary.taxaSucesso) : "…"}</strong><small>{reversao ? (reversao.encerrados ? `${reversao.revertidos} de ${reversao.encerrados} encerrados` : "Nenhum caso encerrado ainda") : "Calculando..."}</small></div></div>
+    <div className="chargeback-summary"><div title={periodSummary ? "Soma dos chargebacks revertidos dentro do período." : "Soma dos chargebacks revertidos registrados neste ano."}><span>{periodSummary ? "Valor recuperado no período" : `Valor recuperado em ${cbSummary?.ano ?? new Date().getFullYear()}`}</span><strong key={rangeKey} className="cbk-value-in">{periodSummary ? hubMoney(periodSummary.recuperado) : cbSummary ? hubMoney(cbSummary.recuperadoNoAno) : "…"}</strong><small>{revertidos !== undefined ? `${revertidos} caso(s) revertido(s)` : "Calculando..."}</small></div><div title="Chargebacks que ainda não foram revertidos nem negados."><span>Solicitações abertas</span><strong key={rangeKey} className="cbk-value-in">{periodSummary ? periodSummary.abertos : cbSummary ? cbSummary.abertos : "…"}</strong><small>{inPeriod.length} registrada(s) {periodSummary ? "no período" : "no total"}</small></div><div title="Revertidos dentre os já encerrados (revertidos + negados)."><span>Taxa de sucesso</span><strong key={rangeKey} className="cbk-value-in">{periodSummary ? formatPercent(periodSummary.taxaSucesso) : cbSummary ? formatPercent(cbSummary.taxaSucesso) : "…"}</strong><small>{encerrados !== undefined ? (encerrados ? `${revertidos} de ${encerrados} encerrados` : periodSummary ? "Nenhum caso encerrado no período" : "Nenhum caso encerrado ainda") : "Calculando..."}</small></div></div>
 
     <div className="page-actions">
-      <div className="search-field">
-        <Search size={17} />
-        <input placeholder="Buscar por cliente ou instituição" value={query} onChange={(event) => setQuery(event.target.value)} />
+      <div className="cbk-filters">
+        <div className="search-field">
+          <Search size={17} />
+          <input placeholder="Buscar por cliente ou instituição" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </div>
+        <PeriodFilter period={period} onChange={setPeriod} from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo} rangeText={rangeText} />
       </div>
       <button className="primary-button" onClick={() => setForm(emptyForm())}><Plus size={16} /> Novo chargeback</button>
     </div>
@@ -179,20 +242,22 @@ export default function ChargebacksPage({ listFilter, onClearFilter, isAdmin, dr
         <button className="secondary-button" onClick={exportReport}><FileText size={16} /> Exportar CSV</button>
       </div>
       <div className="filter-buttons cbk-status-filters">
-        <button className={statusFilter === "todos" ? "filter-active" : ""} onClick={() => setStatusFilter("todos")}>Todos <b>{chargebackList.length}</b></button>
+        <button className={statusFilter === "todos" ? "filter-active" : ""} onClick={() => setStatusFilter("todos")}>Todos <b>{inPeriod.length}</b></button>
         {statusOptions.map((status) => {
-          const count = chargebackList.filter((item) => item.status === status).length;
-          return count > 0 && <button key={status} className={statusFilter === status ? "filter-active" : ""} onClick={() => setStatusFilter(status)}>{status} <b>{count}</b></button>;
+          const count = inPeriod.filter((item) => item.status === status).length;
+          // The chosen status stays on screen even at zero, so changing the period doesn't hide what is filtering the list.
+          return (count > 0 || statusFilter === status) && <button key={status} className={statusFilter === status ? "filter-active" : ""} onClick={() => setStatusFilter(status)}>{status} <b>{count}</b></button>;
         })}
       </div>
       {listFilter && <ListFilterBar label={CHARGEBACK_LIST_FILTERS[listFilter]} count={filterIds ? visible.length : undefined} noun="chargeback(s)" onClear={onClearFilter} />}
       <div className="table-wrap"><table>
-        <thead><tr><th>Cliente</th><th>Instituição</th><th>Valor estimado</th><th>Prazo</th><th>Status</th><th /></tr></thead>
+        <thead><tr><th>Cliente</th><th>Instituição</th><th title={DATE_BASIS_HINT}>Data</th><th>Valor estimado</th><th>Prazo</th><th>Status</th><th /></tr></thead>
         <tbody>
-          {visible.length === 0 && <tr className="empty-row"><td colSpan={6}>{chargebacksQuery.isLoading || (listFilter && !filterIds) ? "Carregando..." : chargebackList.length === 0 ? "Nenhum chargeback registrado. Use \"Novo chargeback\" para registrar o primeiro." : "Nenhum chargeback nesta situação."}</td></tr>}
+          {visible.length === 0 && <tr className="empty-row"><td colSpan={7}>{chargebacksQuery.isLoading || (listFilter && !filterIds) ? "Carregando..." : chargebackList.length === 0 ? "Nenhum chargeback registrado. Use \"Novo chargeback\" para registrar o primeiro." : "Nenhum chargeback nesta situação."}</td></tr>}
           {pagination.visible.map((item) => <tr key={item.id} onClick={() => setSelectedId(item.id)}>
             <td><div className="table-person"><span className="avatar avatar-gradient">{initials(item.client)}</span><strong>{item.client}</strong></div></td>
             <td>{item.bank || "—"}</td>
+            <td className="muted-cell">{item.date ? isoToBrDate(item.date) : "—"}</td>
             <td><strong>{item.amount || "—"}</strong></td>
             <td className="muted-cell">{item.deadline || "—"}</td>
             <td><StatusPill tone={item.tone}>{item.status || "Sem status"}</StatusPill></td>

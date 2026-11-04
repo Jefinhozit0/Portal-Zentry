@@ -1416,6 +1416,103 @@ tbody tr:hover { background: var(--surface-muted); }
 .cbk-status-filters { flex-wrap: wrap; padding: 0 20px 12px; }
 .cbk-hint { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 400; }
 
+/* Chargebacks: period, next to the search field and with the same height and border */
+.cbk-filters { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.cbk-filters .search-field { max-width: 360px; }
+.cbk-period-trigger {
+  flex: none;
+  height: 42px;
+  padding: 0 12px 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: border-color .2s var(--ease-out), background .2s var(--ease-out), box-shadow .2s var(--ease-out);
+}
+.cbk-period-trigger > svg:first-child { color: var(--muted); transition: color .2s var(--ease-out); }
+.cbk-period-trigger small { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.cbk-period-trigger:hover, .cbk-period-trigger[data-state="open"] { border-color: var(--gold-line); }
+.cbk-period-trigger[data-state="open"] { box-shadow: var(--focus-ring); }
+.cbk-period-trigger.is-active { border-color: var(--gold-line); background: var(--gold-soft); font-weight: 600; }
+.cbk-period-trigger.is-active small { font-weight: 400; }
+.cbk-period-trigger.is-active > svg:first-child, .cbk-period-trigger[data-state="open"] > svg:first-child { color: var(--gold); }
+.cbk-period-chevron { color: var(--muted); transition: transform .25s var(--ease-out); }
+.cbk-period-trigger[data-state="open"] .cbk-period-chevron { transform: rotate(180deg); }
+
+.cbk-period-menu {
+  width: 288px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+.cbk-period-menu[data-state="open"] { animation: cbk-menu-in 220ms var(--ease-out); }
+.cbk-period-menu[data-state="closed"] { animation: cbk-menu-out 130ms ease-in forwards; }
+@keyframes cbk-menu-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+@keyframes cbk-menu-out { to { opacity: 0; transform: translateY(-4px) scale(.985); } }
+.cbk-period-options { display: grid; gap: 2px; }
+.cbk-period-options button {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-soft);
+  background: transparent;
+  font-size: 13.5px;
+  text-align: left;
+  transition: background .15s ease, color .15s ease;
+}
+.cbk-period-options button:hover { color: var(--text); background: var(--surface-muted); }
+.cbk-period-options button.is-selected { color: var(--text); background: var(--gold-soft); font-weight: 600; }
+.cbk-period-options button svg { color: var(--gold); animation: cbk-check-in 220ms var(--ease-out); }
+@keyframes cbk-check-in { from { opacity: 0; transform: scale(.5); } }
+/* Slides open with no fixed height; closed, visibility also takes the fields out of the Tab order. */
+.cbk-period-custom { display: grid; grid-template-rows: 0fr; visibility: hidden; transition: grid-template-rows .28s var(--ease-out), visibility .28s; }
+.cbk-period-custom.is-open { grid-template-rows: 1fr; visibility: visible; }
+.cbk-period-dates { min-height: 0; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 4px; }
+.cbk-period-dates label { display: grid; gap: 4px; margin-top: 8px; color: var(--muted); font-size: 12.5px; }
+.cbk-period-dates input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 13px;
+}
+.cbk-period-dates input:focus { outline: none; border-color: var(--link); box-shadow: var(--focus-ring); }
+.cbk-period-hint { display: block; margin-top: 6px; padding: 8px 10px 4px; border-top: 1px solid var(--border-subtle); color: var(--muted); font-size: 12px; line-height: 1.4; }
+.cbk-value-in { animation: cbk-value-in 280ms var(--ease-out); }
+@keyframes cbk-value-in { from { opacity: 0; transform: translateY(4px); } }
+/* Short on room beside the search field: the dates give way (the trigger's label still reads them out). */
+@media (min-width: 761px) and (max-width: 1240px) {
+  .cbk-period-trigger small { display: none; }
+}
+@media (max-width: 760px) {
+  .cbk-filters { flex-direction: column; align-items: stretch; }
+  .cbk-filters .search-field { flex: none; max-width: none; }
+  .cbk-period-trigger { width: 100%; }
+  .cbk-period-chevron { margin-left: auto; }
+  .cbk-period-menu { width: var(--radix-popover-trigger-width); }
+  .cbk-period-dates input { font-size: 16px; }
+}
+
+
 /* Client Detail Page */
 .client-detail-page {
   max-width: 1400px;
@@ -3128,6 +3225,9 @@ tbody tr.empty-row:hover { background: transparent; }
 .client-portal-block h2 { margin: 0 0 12px; color: var(--text); font-size: 17px; font-weight: 600; }
 .client-portal-block h2 > svg { margin-right: 6px; color: var(--link); vertical-align: -2px; }
 .client-portal-summary { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+.client-doc-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+.client-doc-upload small { color: var(--muted); font-size: 12.5px; }
+.client-doc-upload .secondary-button { display: inline-flex; align-items: center; gap: 7px; }
 .client-doc-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .client-doc-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-muted); }
 .client-doc-list li > svg { flex: none; color: var(--link); }

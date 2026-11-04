@@ -3,6 +3,7 @@
  * contract figures and the bank change; the company's contacts (shared/empresa.ts) and the 7-day term are fixed.
  */
 
+import { NOMES_ESTADOS } from "./cep";
 import { PROBLEMA_DOCUMENTO, documentoValido } from "./procuracao";
 import type { Genero } from "./genero";
 
@@ -11,6 +12,7 @@ export type NotificacaoDados = {
   /** "inscrito" / "inscrita"; null keeps "inscrito(a)". */
   genero: Genero | null;
   cpf: string;
+  /** "contrato de financiamento", "contrato de empréstimo consignado"... */
   modalidade: Modalidade;
   /** Amount of the contract (crédito liberado). */
   valor: number;
@@ -19,7 +21,8 @@ export type NotificacaoDados = {
   bancoNome: string;
   bancoCnpj: string;
   bancoEndereco: string;
-  cidade: string;
+  /** The place of signing: the state, written out ("São Paulo", "Bahia"). */
+  estado: string;
   /** aaaa-mm-dd */
   data: string;
 };
@@ -44,13 +47,24 @@ export type NotificacaoContratoDados = {
   bancoNome: string;
   bancoCnpj: string;
   bancoEndereco: string;
-  cidade: string;
+  /** The place of signing: the state, written out ("São Paulo", "Bahia"). */
+  estado: string;
   /** aaaa-mm-dd */
   data: string;
 };
 
-export const MODALIDADES = ["financiamento", "empréstimo"] as const;
+/** The generic two (what a contract's title tells) plus the services of the cadastro, except "Outros". */
+export const MODALIDADES = ["financiamento", "financiamento imobiliário", "financiamento veicular", "empréstimo", "empréstimo pessoal", "empréstimo consignado", "cartão de crédito"] as const;
 export type Modalidade = (typeof MODALIDADES)[number];
+
+/** The client's first service that is a contract type ("Financiamento Veicular" → "financiamento veicular"). */
+export function modalidadeDosServicos(services: readonly string[]): Modalidade | null {
+  for (const service of services) {
+    const modalidade = MODALIDADES.find((option) => option === service.trim().toLowerCase());
+    if (modalidade) return modalidade;
+  }
+  return null;
+}
 
 /** From the contract's title: crédito pessoal / empréstimo / CCB of a loan → empréstimo; CDC, veículos, financiamento → financiamento. */
 export function modalidadeDoTitulo(titulo: string): Modalidade | null {
@@ -79,13 +93,13 @@ export function avisoTaxa(taxaMensal: number, taxaEfetiva: number | null) {
     : { ok: false, texto: `As parcelas correspondem a ${texto}% a.m., que não é maior que os ${taxaMensal.toLocaleString("pt-BR")}% do contrato: o argumento da notificação não se aplica a este contrato.` };
 }
 
-function problemasBancoELocal(dados: { bancoNome: string; bancoCnpj: string; bancoEndereco: string; cidade: string; data: string }) {
+function problemasBancoELocal(dados: { bancoNome: string; bancoCnpj: string; bancoEndereco: string; estado: string; data: string }) {
   const problems: string[] = [];
   if (!dados.bancoNome.trim()) problems.push("Falta a instituição financeira.");
   if (!dados.bancoCnpj.trim()) problems.push("Falta o CNPJ da instituição.");
   if (!dados.bancoEndereco.trim()) problems.push("Falta o endereço da sede da instituição.");
-  if (!dados.cidade.trim()) problems.push("Falta a cidade.");
-  else if (/\d/.test(dados.cidade)) problems.push(`Escreva a cidade por extenso: "${dados.cidade.trim()}" parece um código, não o nome da cidade.`);
+  if (!dados.estado.trim()) problems.push("Escolha o estado (local da assinatura).");
+  else if (!NOMES_ESTADOS.includes(dados.estado.trim())) problems.push(`O local da assinatura é o estado: "${dados.estado.trim()}" não é um estado.`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.data)) problems.push("Falta a data.");
   return problems;
 }
@@ -93,10 +107,10 @@ function problemasBancoELocal(dados: { bancoNome: string; bancoCnpj: string; ban
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-/** "São Paulo, 14 de novembro de 2025." */
-export function dataPorExtenso(cidade: string, data: string) {
+/** "São Paulo, 14 de novembro de 2025.": the state, then the date. */
+export function dataPorExtenso(estado: string, data: string) {
   const [year, month, day] = data.split("-").map(Number);
-  return `${cidade.trim()}, ${day} de ${MESES[month - 1]} de ${year}.`;
+  return `${estado.trim()}, ${day} de ${MESES[month - 1]} de ${year}.`;
 }
 
 const UNIDADES = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];

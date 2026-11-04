@@ -2,7 +2,9 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { impliedRate, parseBRL } from "@shared/laudo";
-import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, type NotificacaoContratoDados, type NotificacaoDados, avisoTaxa, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
+import type { Banco, BancoNovo } from "@shared/bancos";
+import { type Modalidade, modalidadeDosServicos, type NotificacaoContratoDados, type NotificacaoDados, avisoTaxa, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
+import { NOMES_ESTADOS } from "@shared/cep";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
 import { formatDocumento as formatCPF, hojeISO } from "@shared/procuracao";
@@ -10,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
+import { BancoCadastroDialog, NOVO_BANCO, NOVO_BANCO_LABEL, useBancos } from "./BancoCadastro";
 import { type Conferencia, ConferenciaLeitura } from "./ConferenciaLeitura";
 import type { ProcuracaoClient } from "./ProcuracaoForm";
 import { TipoContratoSelect } from "./TipoContratoSelect";
@@ -20,7 +23,7 @@ import { TipoContratoSelect } from "./TipoContratoSelect";
  */
 export type TipoNotificacao = "manual" | "contrato";
 
-type Key = "nome" | "cpf" | "valor" | "parcelas" | "valorParcela" | "contrato" | "taxaMensal" | "valorFinanciado" | "bancoNome" | "bancoCnpj" | "bancoEndereco" | "cidade" | "data";
+type Key = "nome" | "cpf" | "valor" | "parcelas" | "valorParcela" | "contrato" | "taxaMensal" | "valorFinanciado" | "bancoNome" | "bancoCnpj" | "bancoEndereco" | "estado" | "data";
 /** Every field as typed; the amounts are converted for the preview and the PDF. */
 type Form = Record<Key, string>;
 type Field = { key: Key; label: string; placeholder?: string; wide?: boolean; numeric?: boolean };
@@ -53,13 +56,13 @@ const BANK_FIELDS: Field[] = [
 ];
 
 const toText = (value: number) => (value > 0 ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
-const blank = (): Form => ({ nome: "", cpf: "", valor: "", parcelas: "", valorParcela: "", contrato: "", taxaMensal: "", valorFinanciado: "", bancoNome: "", bancoCnpj: "", bancoEndereco: "", cidade: "São Paulo", data: hojeISO() });
+const blank = (): Form => ({ nome: "", cpf: "", valor: "", parcelas: "", valorParcela: "", contrato: "", taxaMensal: "", valorFinanciado: "", bancoNome: "", bancoCnpj: "", bancoEndereco: "", estado: "São Paulo", data: hojeISO() });
 const number = (text: string) => parseBRL(text) ?? 0;
 
 const common = (form: Form) => ({
-  nome: form.nome.trim(), cpf: form.cpf.trim(), bancoNome: form.bancoNome.trim(), bancoCnpj: form.bancoCnpj.trim(), bancoEndereco: form.bancoEndereco.trim(), cidade: form.cidade.trim(), data: form.data,
+  nome: form.nome.trim(), cpf: form.cpf.trim(), bancoNome: form.bancoNome.trim(), bancoCnpj: form.bancoCnpj.trim(), bancoEndereco: form.bancoEndereco.trim(), estado: form.estado.trim(), data: form.data,
 });
-const toManual = (form: Form, genero: Genero | null, modalidade: Modalidade): NotificacaoDados => ({ ...common(form), genero, modalidade, valor: number(form.valor), valorParcela: number(form.valorParcela), parcelas: Math.trunc(number(form.parcelas)) });
+const toManual = (form: Form, modalidade: Modalidade, genero: Genero | null): NotificacaoDados => ({ ...common(form), genero, modalidade, valor: number(form.valor), valorParcela: number(form.valorParcela), parcelas: Math.trunc(number(form.parcelas)) });
 const toContrato = (form: Form, modalidade: Modalidade, genero: Genero | null): NotificacaoContratoDados => ({ ...common(form), genero, contrato: form.contrato.trim(), taxaMensal: number(form.taxaMensal), modalidade });
 
 export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificacao; clients: ProcuracaoClient[]; onDone?: (result: { attached: boolean }) => void }) {
@@ -68,6 +71,8 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
   const [anexar, setAnexar] = useState(false);
   const [source, setSource] = useState("");
   const [conferencia, setConferencia] = useState<Conferencia | null>(null);
+  const bancos = useBancos();
+  const [novoBanco, setNovoBanco] = useState<BancoNovo | null>(null);
   const [modalidade, setModalidade] = useState<Modalidade>("financiamento");
   /** "auto" follows the client's first name; the others are the team's choice. */
   const [generoEscolha, setGeneroEscolha] = useState<"auto" | Genero | "indefinido">("auto");
@@ -81,13 +86,23 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     setClientName(name);
     const match = clients.find((option) => option.name.trim().toLowerCase() === name.trim().toLowerCase());
     if (match) setForm((current) => ({ ...current, nome: current.nome || match.name.toUpperCase(), cpf: current.cpf || (match.cpf ? formatCPF(match.cpf) : "") }));
+    const doCadastro = match && modalidadeDosServicos(match.services ?? []);
+    if (doCadastro) setModalidade(doCadastro);
   }
 
-  function chooseBank(id: string) {
-    const bank = BANCOS_CONHECIDOS.find((option) => option.id === id);
+  function fillBank(bank: Banco | undefined) {
     setForm((current) => bank
       ? { ...current, bancoNome: bank.nome, bancoCnpj: bank.cnpj, bancoEndereco: bank.endereco }
       : { ...current, bancoNome: "", bancoCnpj: "", bancoEndereco: "" });
+  }
+
+  function chooseBank(id: string) {
+    if (id === NOVO_BANCO) {
+      // What was typed or read from a contract is the start of the registration.
+      setNovoBanco(knownBank ? { nome: "", cnpj: "", endereco: "" } : { nome: form.bancoNome, cnpj: form.bancoCnpj, endereco: form.bancoEndereco });
+      return;
+    }
+    fillBank(bancos.todos.find((option) => option.id === id));
   }
 
   async function readContract() {
@@ -101,7 +116,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
         setSource(`Não encontrei texto em ${file.name} nem lendo as imagens das páginas. Preencha os dados à mão.`);
         return;
       }
-      const bank = bancoConhecido(dados.instituicao, cnpjInstituicao);
+      const bank = bancoConhecido(dados.instituicao, cnpjInstituicao, bancos.cadastrados);
       if (lida) setModalidade(lida);
       setForm((current) => ({
         ...current,
@@ -141,12 +156,12 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
 
   const generoDetectado = generoDoNome(form.nome);
   const genero = generoEscolha === "auto" ? generoDetectado : generoEscolha === "indefinido" ? null : generoEscolha;
-  const manual = toManual(form, genero, modalidade), contrato = toContrato(form, modalidade, genero);
+  const manual = toManual(form, modalidade, genero), contrato = toContrato(form, modalidade, genero);
   const problems = tipo === "manual" ? problemasNotificacao(manual) : problemasNotificacaoContrato(contrato);
   const taxaCheck = tipo === "contrato" ? avisoTaxa(contrato.taxaMensal, impliedRate(number(form.valorFinanciado), number(form.valorParcela), Math.trunc(number(form.parcelas)))) : null;
   const attach = anexar && chosen !== undefined;
   const busy = lerContrato.isPending || generating;
-  const knownBank = BANCOS_CONHECIDOS.find((bank) => bank.nome === form.bancoNome && bank.cnpj === form.bancoCnpj);
+  const knownBank = bancos.todos.find((bank) => bank.nome === form.bancoNome && bank.cnpj === form.bancoCnpj);
 
   async function generate(event: React.FormEvent) {
     event.preventDefault();
@@ -164,17 +179,17 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     }
   }
 
-  const set = (key: Key) => (event: React.ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const set = (key: Key) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const input = (field: Field) =>
     <label key={field.key} className={field.wide ? "full-field" : undefined}>{field.label}
       <input name={`notificacao-${field.key}`} autoComplete="off" inputMode={field.numeric ? "decimal" : undefined} value={form[field.key]} onChange={set(field.key)} placeholder={field.placeholder} disabled={busy} />
     </label>;
 
   const preview = tipo === "manual"
-    ? <p>Pede a <strong>{manual.bancoNome}</strong> o contrato de {manual.modalidade} de <strong>{manual.nome.toUpperCase()}</strong>: {moeda(manual.valor)} em {manual.parcelas} parcelas de {moeda(manual.valorParcela)} · {dataPorExtenso(manual.cidade, manual.data)}</p>
-    : <p>Contesta junto a <strong>{contrato.bancoNome}</strong> a taxa de {form.taxaMensal}% a.m. do contrato de {modalidade} <strong>nº {contrato.contrato}</strong> de <strong>{contrato.nome.toUpperCase()}</strong> · {dataPorExtenso(contrato.cidade, contrato.data)}</p>;
+    ? <p>Pede a <strong>{manual.bancoNome}</strong> o contrato de {modalidade} de <strong>{manual.nome.toUpperCase()}</strong>: {moeda(manual.valor)} em {manual.parcelas} parcelas de {moeda(manual.valorParcela)} · {dataPorExtenso(manual.estado, manual.data)}</p>
+    : <p>Contesta junto a <strong>{contrato.bancoNome}</strong> a taxa de {form.taxaMensal}% a.m. do contrato de {modalidade} <strong>nº {contrato.contrato}</strong> de <strong>{contrato.nome.toUpperCase()}</strong> · {dataPorExtenso(contrato.estado, contrato.data)}</p>;
 
-  return <form onSubmit={generate} className="laudo-form laudo-form-page" autoComplete="off">
+  return <><form onSubmit={generate} className="laudo-form laudo-form-page" autoComplete="off">
     <div className="laudo-source">
       <Button type="button" variant="outline" size="sm" onClick={readContract} disabled={busy}>
         {lerContrato.isPending ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} Ler contrato (PDF)
@@ -211,7 +226,8 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
       <div className="new-sale-grid">
         <label className="full-field">Banco
           <select value={knownBank?.id ?? ""} onChange={(event) => chooseBank(event.target.value)} disabled={busy}>
-            {BANCOS_POR_NOME.map((bank) => <option key={bank.id} value={bank.id}>{bank.nome}</option>)}
+            <option value={NOVO_BANCO}>{NOVO_BANCO_LABEL}</option>
+            {bancos.todos.map((bank) => <option key={bank.id} value={bank.id}>{bank.nome}</option>)}
             <option value="">Outro (digitar abaixo)</option>
           </select>
         </label>
@@ -220,7 +236,12 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     </fieldset>
 
     <div className="new-sale-grid laudo-place">
-      <label>Cidade<input name="notificacao-cidade" autoComplete="off" value={form.cidade} onChange={set("cidade")} disabled={busy} /></label>
+      <label>Estado (local da assinatura)
+        <select name="notificacao-estado" value={form.estado} onChange={set("estado")} disabled={busy}>
+          <option value="">Escolha o estado</option>
+          {NOMES_ESTADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+        </select>
+      </label>
       <label>Data<input type="date" value={form.data} onChange={set("data")} disabled={busy} /></label>
     </div>
 
@@ -232,7 +253,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
     {chosen
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso)
+          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso com o passo a passo para assinar pelo gov.br)
         </label>
       : clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: a notificação é gerada, mas não fica anexada a nenhum cadastro.</p>}
 
@@ -240,5 +261,7 @@ export function NotificacaoForm({ tipo, clients, onDone }: { tipo: TipoNotificac
       <Button type="button" variant="outline" onClick={reset} disabled={busy}>Limpar</Button>
       <Button type="submit" disabled={busy || problems.length > 0}>{generating ? "Gerando..." : "Gerar notificação (PDF)"}</Button>
     </div>
-  </form>;
+  </form>
+  <BancoCadastroDialog inicial={novoBanco} onClose={() => setNovoBanco(null)} onSaved={(bank) => { fillBank(bank); setNovoBanco(null); }} />
+  </>;
 }

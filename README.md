@@ -89,7 +89,9 @@ Preencha o `.env`:
 | `NOTIFY_CLIENTS` | `off` desliga os avisos aos clientes |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Chaves das notificações do app. Vazio: criadas sozinhas em `.push-keys.json`. Não perca nem troque: todo aparelho teria que ativar de novo |
 | `BACKUP_DIR` | Pasta do backup diário (padrão `backups`). Uma pasta do Google Drive guarda cópia fora do notebook |
-| `BACKGROUND_JOBS` | `off` desliga backup e lembretes automáticos |
+| `CHARGEBACKS_PLANILHA` | Caminho da planilha de chargebacks (.xlsx) na pasta do Google Drive para computador. Vazio: sem sincronização |
+| `CHARGEBACKS_DESDE` | Primeira aba de mês lida, como `AAAA-MM` (padrão `2026-07`) |
+| `BACKGROUND_JOBS` | `off` desliga backup, lembretes e a sincronização dos chargebacks |
 | `PORT` | Porta do servidor (padrão 3000) |
 
 ### 3. Criar as tabelas no Supabase
@@ -136,6 +138,13 @@ Cria a tarefa "Portal Zentry" no Windows: a cada logon, o portal e o túnel do C
 O servidor faz um backup por dia na pasta `backups\` (últimos 30 dias, mais uma cópia de cada documento). A página Administração mostra o último backup e tem o botão "Fazer backup agora". Para trazer registros de volta:
 ```bash
 npx tsx scripts/restaurar-backup.ts backups/2026-10-09 clientes 7,8,9
+```
+
+### Chargebacks pela planilha
+A equipe atualiza a planilha "CHARGE BACK" (uma aba por mês) no Google Drive; o Google Drive para computador mantém o .xlsx no notebook. A cada 10 minutos o servidor confere se o arquivo mudou e atualiza os chargebacks: linha nova vira chargeback, coluna alterada atualiza o chargeback (o valor anterior fica no histórico) e linha apagada remove o chargeback daquela aba. O status escolhido no portal só muda quando a coluna REVERSÃO diz revertido ou restituído. Para ver o que mudaria, ou sincronizar na hora:
+```bash
+npx tsx scripts/sincronizar-chargebacks.ts           # só mostra
+npx tsx scripts/sincronizar-chargebacks.ts --gravar  # grava
 ```
 
 ### Dados de exemplo

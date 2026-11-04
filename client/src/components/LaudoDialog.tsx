@@ -224,7 +224,7 @@ export function LaudoForm({ variant, client, clients = [], documento, onDone, on
     {chosenClient
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosenClient.name} (o cliente vê no portal e recebe um aviso)
+          Anexar também aos documentos de {chosenClient.name} (o cliente vê no portal e recebe um aviso com o passo a passo para assinar pelo gov.br)
         </label>
       : variant === "page" && clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: o laudo é gerado, mas não fica anexado a nenhum cadastro.</p>}
 

@@ -122,6 +122,14 @@ export default function AdminPage() {
               <p className="admin-muted">Clientes recebem aviso por WhatsApp e e-mail quando a equipe responde, muda o status ou anexa um documento: <b>{data.avisosParaClientes ? "ligado" : "desligado (NOTIFY_CLIENTS=off)"}</b>.</p>
               <p className="admin-muted">Lembrete para quem não criou a senha em 2 dias, uma vez, das 9h às 20h. Última verificação: <b>{when(data.lembretes.lastRun)}</b>{data.lembretes.lastResult ? ` · ${data.lembretes.lastResult}` : ""}.</p>
               {data.lembretes.lastError && <p className="form-message">A última verificação falhou: {data.lembretes.lastError}</p>}
+              {data.chargebacks.planilha ? (
+                <>
+                  <p className="admin-muted">Chargebacks seguem a planilha <code>{data.chargebacks.planilha}</code>, conferida a cada 10 minutos. Última conferência: <b>{when(data.chargebacks.lastRun)}</b>{data.chargebacks.lastResult ? ` · ${data.chargebacks.lastResult}` : ""}.</p>
+                  {data.chargebacks.lastError && <p className="form-message">A última conferência falhou: {data.chargebacks.lastError}</p>}
+                </>
+              ) : (
+                <p className="admin-muted">Chargebacks: sem planilha ligada (CHARGEBACKS_PLANILHA no .env).</p>
+              )}
             </>
           )}
         </section>

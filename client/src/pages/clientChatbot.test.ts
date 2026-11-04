@@ -44,6 +44,12 @@ describe("assistant replies", () => {
     expect(text).toContain("status alterado, em 18/10/2026");
   });
 
+  it("counts only what the team attached and says how to send a signed document", () => {
+    const reply = BOT_STEPS.documentos.reply({ ...process, status: "Em andamento", documents: [{ nome: "foto.jpg", created_at: "2026-11-01T15:00:00Z", enviadoPeloCliente: true }, ...process.documents] }, "Documentos");
+    expect(reply).toContain('1 documento ao seu processo (o mais recente: "Contrato.pdf"');
+    expect(reply).toContain("Enviar documento assinado");
+  });
+
   it("lists what the team attached and says when documents are missing", () => {
     const text = BOT_STEPS.documentos.reply(process, "Documentos");
     expect(text).toContain('1 documento ao seu processo (o mais recente: "Contrato.pdf", em 15/10/2026)');

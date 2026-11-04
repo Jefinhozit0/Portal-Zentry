@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { DASHBOARD_RULES, type ChargebackListFilter, type ClientListFilter } from "@shared/dashboard";
+import { DASHBOARD_RULES, chargebackOutcome, type ChargebackListFilter, type ClientListFilter } from "@shared/dashboard";
 import { isValidTermsVersion } from "@shared/termos";
 import { parseTicketMessage } from "@shared/tickets";
 import { supabase } from "./supabase";
@@ -143,8 +143,8 @@ export async function computeDashboard(now = Date.now()) {
   const cbks = chargebacks.map((cb) => ({
     row: cb,
     amount: parseMoney(cb.amount),
-    success: inList(DASHBOARD_RULES.chargebackSuccessStatuses, cb.status),
-    failed: inList(DASHBOARD_RULES.chargebackFailedStatuses, cb.status),
+    success: chargebackOutcome(cb.status) === "won",
+    failed: chargebackOutcome(cb.status) === "lost",
   }));
   const abertos = cbks.filter((cb) => !cb.success && !cb.failed);
   const revertidos = cbks.filter((cb) => cb.success);

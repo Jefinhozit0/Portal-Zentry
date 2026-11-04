@@ -9,7 +9,7 @@ const ChargebacksPage = lazy(() => import("./Chargebacks"));
 const LaudosPage = lazy(() => import("./Laudos"));
 import { useQueryClient } from "@tanstack/react-query";
 import { parseTicketMessage } from "@shared/tickets";
-import { INITIAL_STATUS } from "@shared/processo";
+import { CLIENT_SERVICES, INITIAL_STATUS } from "@shared/processo";
 import { EMPRESA } from "@shared/empresa";
 import type { ChargebackDraft } from "@shared/chargebacks";
 import { CHARGEBACK_LIST_FILTERS, CLIENT_LIST_FILTERS, DASHBOARD_RULES, METRIC_HELP, type ChargebackListFilter, type ClientListFilter, type ListFilter } from "@shared/dashboard";
@@ -75,7 +75,6 @@ import {
 type View = "dashboard" | "clientes" | "chargebacks" | "atendimento" | "termos" | "laudos" | "saleshub" | "client-detail" | "admin";
 type Client = { id?: number; name: string; cpf: string; type: string; status: string; updated: string; tone: "green" | "yellow" | "red"; email?: string; phone?: string; services?: string[]; tags?: string[] };
 
-const clientServices = ["Financiamento Imobiliário", "Financiamento Veicular", "Empréstimo Pessoal", "Empréstimo Consignado", "Cartão de Crédito", "Outros"];
 
 export { hubMoney } from "./salesHubData";
 
@@ -666,7 +665,7 @@ function ClientsPage({ setView, selectedClient, setSelectedClient, listFilter, o
             </div>
             <fieldset className="client-service-selection">
               <legend>Serviços contratados</legend>
-              <div className="client-service-options">{clientServices.map((service) => <label key={service}><input type="checkbox" checked={newClient.services.includes(service)} required={newClient.services.length === 0} onChange={(event) => setNewClient((current) => ({ ...current, services: event.target.checked ? [...current.services, service] : current.services.filter((item) => item !== service) }))} /><span>{service}</span></label>)}</div>
+              <div className="client-service-options">{CLIENT_SERVICES.map((service) => <label key={service}><input type="checkbox" checked={newClient.services.includes(service)} required={newClient.services.length === 0} onChange={(event) => setNewClient((current) => ({ ...current, services: event.target.checked ? [...current.services, service] : current.services.filter((item) => item !== service) }))} /><span>{service}</span></label>)}</div>
             </fieldset>
             <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setRegistrationOpen(false)}>Cancelar</button><button type="submit" className="hub-primary">Cadastrar cliente</button></div>
           </form>

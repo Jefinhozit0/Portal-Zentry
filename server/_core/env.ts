@@ -23,6 +23,8 @@ export const ENV = {
   teamNotifyEmails: emailList(process.env.TEAM_NOTIFY_EMAILS),
   /** Team WhatsApp numbers (with area code) that also get those alerts. Optional. */
   teamNotifyWhatsApp: (process.env.TEAM_NOTIFY_WHATSAPP ?? "").split(/[,;]+/).map((phone) => phone.trim()).filter(Boolean),
+  /** WhatsApp numbers that get only the notice of a document attached by a client, none of the other team alerts. Optional. */
+  documentNotifyWhatsApp: (process.env.DOCUMENT_NOTIFY_WHATSAPP ?? "").split(/[,;]+/).map((phone) => phone.trim()).filter(Boolean),
   /** "off" stops the WhatsApp messages to clients about replies, status changes and documents. */
   notifyClients: (process.env.NOTIFY_CLIENTS ?? "on").toLowerCase() !== "off",
   /** Key pair of the app notifications (Web Push). Empty: created once and kept in .push-keys.json. */
@@ -30,6 +32,10 @@ export const ENV = {
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   /** Where the daily backup goes. A Google Drive / OneDrive synced folder keeps a copy off the notebook. */
   backupDir: process.env.BACKUP_DIR || "backups",
+  /** The chargebacks spreadsheet (.xlsx) in the Google Drive for desktop folder. Empty: no sync. */
+  chargebacksPlanilha: process.env.CHARGEBACKS_PLANILHA ?? "",
+  /** First month tab (AAAA-MM) the sync reads; older tabs are left alone. */
+  chargebacksDesde: process.env.CHARGEBACKS_DESDE || "2026-07",
   /** cloudflared metrics address, used to find the tunnel's current address when APP_URL=auto. */
   cloudflaredMetrics: process.env.CLOUDFLARED_METRICS || "127.0.0.1:20241",
   /** Public URL of the portal, used in the access e-mail sent to new clients. */

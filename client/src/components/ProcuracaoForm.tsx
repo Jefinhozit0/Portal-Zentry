@@ -8,7 +8,7 @@ import { CEP_STATUS_TEXT, focusAt, useCep } from "@/lib/cep";
 import { downloadPdf } from "@/lib/downloadPdf";
 import { trpc } from "@/lib/trpc";
 
-export type ProcuracaoClient = { id: number; name: string; cpf?: string | null; email?: string | null };
+export type ProcuracaoClient = { id: number; name: string; cpf?: string | null; email?: string | null; services?: string[] };
 
 /** Procuração extrajudicial: choosing a client fills name, CPF (or CNPJ) and e-mail; the CEP fills most of the address. */
 export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[]; onDone?: (result: { attached: boolean }) => void }) {
@@ -97,7 +97,7 @@ export function ProcuracaoForm({ clients, onDone }: { clients: ProcuracaoClient[
     {chosen
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso para assinar)
+          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso com o passo a passo para assinar pelo gov.br)
         </label>
       : clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: a procuração é gerada, mas não fica anexada a nenhum cadastro.</p>}
 

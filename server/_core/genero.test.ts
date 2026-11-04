@@ -29,7 +29,7 @@ describe("generoDoNome", () => {
 
 describe("notificações with the client's gender", () => {
   const banco = BANCOS_CONHECIDOS[0];
-  const base = { cpf: "00000000000", bancoNome: banco.nome, bancoCnpj: banco.cnpj, bancoEndereco: banco.endereco, cidade: "São Paulo", data: "2026-10-22" };
+  const base = { cpf: "00000000000", bancoNome: banco.nome, bancoCnpj: banco.cnpj, bancoEndereco: banco.endereco, estado: "São Paulo", data: "2026-10-22" };
   const text = (definition: unknown) => JSON.stringify(definition);
 
   it("writes inscrita, inscrito or inscrito(a) in both models", () => {

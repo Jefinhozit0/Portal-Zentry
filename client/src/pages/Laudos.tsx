@@ -30,7 +30,7 @@ export default function LaudosPage({ onOpenClient }: { onOpenClient: (row: Recor
   const rows = (clientesQuery.data ?? []) as Record<string, unknown>[];
   const clients = rows
     .filter((row) => typeof row.id === "number" && typeof row.name === "string" && row.name.trim())
-    .map((row) => ({ id: row.id as number, name: (row.name as string).trim(), cpf: (row.cpf as string | null) ?? null, email: (row.email as string | null) ?? null }))
+    .map((row) => ({ id: row.id as number, name: (row.name as string).trim(), cpf: (row.cpf as string | null) ?? null, email: (row.email as string | null) ?? null, services: Array.isArray(row.services) ? (row.services as string[]) : String(row.type ?? "").split(",") }))
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   const documentos = laudosQuery.data ?? [];
   const current = MODELOS.find((item) => item.id === modelo)!;

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { impliedRate } from "@shared/laudo";
-import { BANCOS_CONHECIDOS, avisoTaxa, modalidadeDoTitulo, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato, reaisPorExtenso } from "@shared/notificacao";
+import { BANCOS_CONHECIDOS, avisoTaxa, modalidadeDoTitulo, modalidadeDosServicos, bancoConhecido, dataPorExtenso, moeda, problemasNotificacao, problemasNotificacaoContrato, reaisPorExtenso } from "@shared/notificacao";
 import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoDefinition, notificacaoDefinition, notificacaoContratoFileName, notificacaoFileName } from "./notificacaoPdf";
 
 const santander = BANCOS_CONHECIDOS[0];
-const dados = { nome: "Maria da Silva", cpf: "00000000000", modalidade: "financiamento" as const, valor: 50000, parcelas: 60, valorParcela: 1845.54, bancoNome: santander.nome, bancoCnpj: santander.cnpj, bancoEndereco: santander.endereco, cidade: "São Paulo", data: "2025-11-14" };
+const dados = { nome: "Maria da Silva", cpf: "00000000000", modalidade: "financiamento" as const, valor: 50000, parcelas: 60, valorParcela: 1845.54, bancoNome: santander.nome, bancoCnpj: santander.cnpj, bancoEndereco: santander.endereco, estado: "São Paulo", data: "2025-11-14" };
 
 describe("notificação extrajudicial", () => {
   it("writes amounts in words like the model", () => {
@@ -31,7 +31,12 @@ describe("notificação extrajudicial", () => {
   it("asks for what is missing", () => {
     expect(problemasNotificacao(dados)).toEqual([]);
     expect(problemasNotificacao({ ...dados, bancoEndereco: "" })).toEqual(["Falta o endereço da sede da instituição."]);
-    expect(problemasNotificacao({ ...dados, valorParcela: 0, cidade: "3550308" })).toHaveLength(2);
+    expect(problemasNotificacao({ ...dados, valorParcela: 0, estado: "Paulo Afonso" })).toHaveLength(2);
+  });
+
+  it("asks for the contract of the type chosen", () => {
+    expect(JSON.stringify(notificacaoDefinition(dados))).toContain("obter o contrato de financiamento no valor");
+    expect(JSON.stringify(notificacaoDefinition({ ...dados, modalidade: "empréstimo consignado" }))).toContain("obter o contrato de empréstimo consignado no valor");
   });
 
   it("notifies Banco do Brasil with its own qualification", () => {
@@ -53,7 +58,7 @@ describe("notificação extrajudicial", () => {
 
 describe("notificação com contrato", () => {
   const bb = BANCOS_CONHECIDOS.find((bank) => bank.id === "bb")!;
-  const dadosContrato = { nome: "Jorge Exemplo Rodrigues", cpf: "00000000000", contrato: "147126013", taxaMensal: 1.96, modalidade: "empréstimo" as const, bancoNome: bb.nome, bancoCnpj: bb.cnpj, bancoEndereco: bb.endereco, cidade: "Teresina", data: "2026-10-06" };
+  const dadosContrato = { nome: "Jorge Exemplo Rodrigues", cpf: "00000000000", contrato: "147126013", taxaMensal: 1.96, modalidade: "empréstimo" as const, bancoNome: bb.nome, bancoCnpj: bb.cnpj, bancoEndereco: bb.endereco, estado: "Piauí", data: "2026-10-06" };
 
   it("qualifies a company client by its CNPJ", () => {
     const empresa = { cpf: "12345678000190", genero: "M" as const };
@@ -71,6 +76,12 @@ describe("notificação com contrato", () => {
     expect(modalidadeDoTitulo("CÉDULA DE CRÉDITO BANCÁRIO - CRÉDITO PESSOAL COM GARANTIA DE VEÍCULO")).toBe("empréstimo");
     expect(modalidadeDoTitulo("CONDIÇÕES ESPECÍFICAS DE OPERAÇÃO DE CRÉDITO DIRETO AO CONSUMIDOR (CDC) – VEÍCULOS")).toBe("financiamento");
     expect(modalidadeDoTitulo("CONTRATO")).toBeNull();
+  });
+
+  it("takes the contract type from the services of the cadastro", () => {
+    expect(modalidadeDosServicos(["Outros", "Financiamento Veicular"])).toBe("financiamento veicular");
+    expect(modalidadeDosServicos([" Cartão de Crédito"])).toBe("cartão de crédito");
+    expect(modalidadeDosServicos(["Outros"])).toBeNull();
   });
 
   it("asks for the contract number and the rate", () => {

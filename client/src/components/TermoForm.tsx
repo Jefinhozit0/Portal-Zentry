@@ -3,7 +3,8 @@ import { AlertTriangle, FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { enderecoDoCep } from "@shared/cep";
 import { GENERO_LABEL, type Genero, generoDoNome } from "@shared/genero";
-import { BANCOS_CONHECIDOS, BANCOS_POR_NOME, type Modalidade, bancoConhecido } from "@shared/notificacao";
+import type { BancoNovo } from "@shared/bancos";
+import { type Modalidade, modalidadeDosServicos, bancoConhecido } from "@shared/notificacao";
 import { MAX_DOCUMENT_BYTES } from "@shared/processo";
 import { formatDocumento as formatCPF } from "@shared/procuracao";
 import { type TermoDados, problemasTermo } from "@shared/termo";
@@ -12,6 +13,7 @@ import { CEP_STATUS_TEXT, focusAt, useCep } from "@/lib/cep";
 import { downloadPdf, pickPdf } from "@/lib/downloadPdf";
 import { clienteDiferente } from "@/lib/nomes";
 import { trpc } from "@/lib/trpc";
+import { BancoCadastroDialog, NOVO_BANCO, NOVO_BANCO_LABEL, useBancos } from "./BancoCadastro";
 import { type Conferencia, ConferenciaLeitura } from "./ConferenciaLeitura";
 import type { ProcuracaoClient } from "./ProcuracaoForm";
 import { TipoContratoSelect } from "./TipoContratoSelect";
@@ -35,6 +37,8 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
   const [anexar, setAnexar] = useState(false);
   const [source, setSource] = useState("");
   const [conferencia, setConferencia] = useState<Conferencia | null>(null);
+  const bancos = useBancos();
+  const [novoBanco, setNovoBanco] = useState<BancoNovo | null>(null);
   // The CEP only helps to write the address (which carries it): a full CEP fills street, bairro, city and
   // UF, and the caret waits for the number.
   const [cepTexto, setCepTexto] = useState("");
@@ -52,6 +56,8 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
     setClientName(name);
     const match = clients.find((option) => option.name.trim().toLowerCase() === name.trim().toLowerCase());
     if (match) setForm((current) => ({ ...current, nome: current.nome || match.name.toUpperCase(), cpf: current.cpf || (match.cpf ? formatCPF(match.cpf) : ""), email: current.email || (match.email ?? "") }));
+    const doCadastro = match && modalidadeDosServicos(match.services ?? []);
+    if (doCadastro) setModalidade(doCadastro);
   }
 
   async function readContract() {
@@ -73,7 +79,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
         cpf: cpf ? formatCPF(cpf) : current.cpf,
         email: email || current.email,
         endereco: endereco || current.endereco,
-        banco: bancoConhecido(dados.instituicao, cnpjInstituicao)?.nome ?? (dados.instituicao || current.banco),
+        banco: bancoConhecido(dados.instituicao, cnpjInstituicao, bancos.cadastrados)?.nome ?? (dados.instituicao || current.banco),
       }));
       const faltando = [!email && "e-mail", !endereco && "endereço", endereco && !/\d{5}-?\d{3}/.test(endereco) && "CEP"].filter(Boolean);
       const lidos = ia
@@ -103,7 +109,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
   const problems = problemasTermo(dados);
   const attach = anexar && chosen !== undefined;
   const busy = lerContrato.isPending || gerar.isPending;
-  const knownBank = BANCOS_CONHECIDOS.find((bank) => bank.nome === form.banco);
+  const knownBank = bancos.todos.find((bank) => bank.nome === form.banco);
 
   async function generate(event: React.FormEvent) {
     event.preventDefault();
@@ -121,7 +127,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
 
   const set = (key: Key) => (event: React.ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
-  return <form onSubmit={generate} className="laudo-form laudo-form-page" autoComplete="off">
+  return <><form onSubmit={generate} className="laudo-form laudo-form-page" autoComplete="off">
     <div className="laudo-source">
       <Button type="button" variant="outline" size="sm" onClick={readContract} disabled={busy}>
         {lerContrato.isPending ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} Ler contrato (PDF)
@@ -156,8 +162,13 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
       </label>
       <TipoContratoSelect value={modalidade} onChange={setModalidade} disabled={busy} />
       <label>Banco
-        <select value={knownBank?.nome ?? ""} onChange={(event) => setForm((current) => ({ ...current, banco: event.target.value }))} disabled={busy}>
-          {BANCOS_POR_NOME.map((bank) => <option key={bank.id} value={bank.nome}>{bank.nome}</option>)}
+        <select value={knownBank?.nome ?? ""} onChange={(event) => {
+          const { value } = event.target;
+          if (value === NOVO_BANCO) setNovoBanco({ nome: knownBank ? "" : form.banco, cnpj: "", endereco: "" });
+          else setForm((current) => ({ ...current, banco: value }));
+        }} disabled={busy}>
+          <option value={NOVO_BANCO}>{NOVO_BANCO_LABEL}</option>
+          {bancos.todos.map((bank) => <option key={bank.id} value={bank.nome}>{bank.nome}</option>)}
           <option value="">Outro (digitar ao lado)</option>
         </select>
       </label>
@@ -176,7 +187,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
     {chosen
       ? <label className="laudo-attach">
           <input type="checkbox" checked={anexar} onChange={(event) => setAnexar(event.target.checked)} />
-          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso para assinar)
+          Anexar também aos documentos de {chosen.name} (o cliente vê no portal e recebe um aviso com o passo a passo para assinar pelo gov.br)
         </label>
       : clientName.trim() && <p className="laudo-hint">Cliente não encontrado na lista: o termo é gerado, mas não fica anexado a nenhum cadastro.</p>}
 
@@ -184,5 +195,7 @@ export function TermoForm({ clients, onDone }: { clients: ProcuracaoClient[]; on
       <Button type="button" variant="outline" onClick={reset} disabled={busy}>Limpar</Button>
       <Button type="submit" disabled={busy || problems.length > 0}>{gerar.isPending ? "Gerando..." : "Gerar termo (PDF)"}</Button>
     </div>
-  </form>;
+  </form>
+  <BancoCadastroDialog inicial={novoBanco} onClose={() => setNovoBanco(null)} onSaved={(bank) => { setForm((current) => ({ ...current, banco: bank.nome })); setNovoBanco(null); }} />
+  </>;
 }

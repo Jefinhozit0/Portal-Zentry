@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bell, CheckCircle2, ChevronRight, ClipboardList, Clock3, Download, Eye, EyeOff, FileText, Headset, LayoutGrid, LockKeyhole, LogOut, MessageCircle, Send, Wallet, X, type LucideIcon } from "lucide-react";
-import { caseSummary, formatFileSize } from "@shared/processo";
+import { AlertTriangle, Bell, CheckCircle2, ChevronRight, ClipboardList, Clock3, Download, Eye, EyeOff, FileText, Headset, LayoutGrid, Loader2, LockKeyhole, LogOut, MessageCircle, Send, Upload, Wallet, X, type LucideIcon } from "lucide-react";
+import { CLIENT_DOCUMENT_ACCEPT, MAX_DOCUMENT_BYTES, caseSummary, formatFileSize } from "@shared/processo";
+import { toast } from "sonner";
+import { readAsBase64 } from "@/lib/downloadPdf";
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Sao_Paulo" }).replace(" de ", " ").replace(".", "");
 import type { TicketTopic } from "@shared/tickets";
@@ -89,6 +91,36 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
   const documentos = documentosQuery.data ?? [];
   const historico = historicoQuery.data ?? [];
   const baixarDocumento = trpc.cliente.baixarDocumento.useMutation();
+  const enviarDocumento = trpc.cliente.enviarDocumento.useMutation();
+  const [uploading, setUploading] = useState(0);
+  function pickDocuments() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.accept = CLIENT_DOCUMENT_ACCEPT;
+    input.onchange = async () => {
+      const files = Array.from(input.files ?? []);
+      setUploading(files.length);
+      let sent = 0;
+      // One at a time: a batch of photos would not fit in one request, and each error names its file.
+      for (const file of files) {
+        try {
+          if (file.size > MAX_DOCUMENT_BYTES) throw new Error("passa de 10 MB");
+          await enviarDocumento.mutateAsync({ nome: file.name, conteudo: await readAsBase64(file) });
+          sent++;
+        } catch (error) {
+          toast.error(`${file.name}: ${error instanceof Error ? error.message : "não foi possível enviar"}`);
+        }
+        setUploading((count) => count - 1);
+      }
+      if (sent > 0) {
+        toast.success(sent === 1 ? "Documento enviado para a equipe." : `${sent} documentos enviados para a equipe.`);
+        void documentosQuery.refetch();
+        void historicoQuery.refetch();
+      }
+    };
+    input.click();
+  }
   async function downloadDocument(id: number) {
     const { url } = await baixarDocumento.mutateAsync({ id }).catch(() => ({ url: "" }));
     // The link is signed to download the file, so the portal stays open.
@@ -331,13 +363,20 @@ function ClientPortalContent({ onLogout }: { onLogout: () => void }) {
 
           <section className="client-portal-card client-portal-block">
             <h2>Documentos</h2>
+            <div className="client-doc-upload">
+              <button type="button" className="secondary-button" disabled={uploading > 0} onClick={pickDocuments}>
+                {uploading > 0 ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                {uploading > 0 ? (uploading === 1 ? "Enviando..." : `Enviando ${uploading} arquivos...`) : "Enviar documento assinado"}
+              </button>
+              <small>PDF ou fotos (JPG, PNG ou WEBP), até 10 MB cada.</small>
+            </div>
             {documentosQuery.isLoading && <p className="client-portal-muted">Carregando...</p>}
             {documentosQuery.isSuccess && documentos.length === 0 && <p className="client-portal-muted">Nenhum documento por enquanto. Quando a equipe anexar um arquivo, ele aparece aqui.</p>}
             <ul className="client-doc-list">
               {documentos.map((doc) => (
                 <li key={doc.id}>
                   <FileText size={18} />
-                  <div><strong>{doc.nome}</strong><small>{formatDay(doc.created_at)} · {formatFileSize(doc.tamanho)}</small></div>
+                  <div><strong>{doc.nome}</strong><small>{formatDay(doc.created_at)} · {formatFileSize(doc.tamanho)}{doc.enviadoPeloCliente ? " · Enviado por você" : ""}</small></div>
                   <button type="button" className="icon-button" disabled={baixarDocumento.isPending} onClick={() => downloadDocument(doc.id)} aria-label={`Baixar ${doc.nome}`} title="Baixar"><Download size={17} /></button>
                 </li>
               ))}

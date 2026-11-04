@@ -81,7 +81,7 @@ export function notificacaoDefinition(dados: NotificacaoDados): TDocumentDefinit
   const nome = dados.nome.trim().toUpperCase();
   const qualificacao = `${dados.bancoNome.trim()}, pessoa jurídica de direito privado, inscrita no CNPJ sob o n° ${dados.bancoCnpj.trim()}, com sede em ${dados.bancoEndereco.trim().replace(/\.$/, "")}.`;
   return pagina(`Notificação extrajudicial – ${nome}`, [
-    body(dataPorExtenso(dados.cidade, dados.data)),
+    body(dataPorExtenso(dados.estado, dados.data)),
     body(`À Instituição financeira ${qualificacao}`),
     body([
       `A ${EMPRESA.nome}, vem, por meio de procurador qualificado na procuração em anexo, em nome de `,
@@ -119,7 +119,7 @@ export function notificacaoContratoDefinition(dados: NotificacaoContratoDados): 
   const nome = dados.nome.trim().toUpperCase();
   const taxa = `${dados.taxaMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}% a.m.`;
   return pagina(`Notificação extrajudicial – ${nome} – contrato ${dados.contrato}`, [
-    body(dataPorExtenso(dados.cidade, dados.data)),
+    body(dataPorExtenso(dados.estado, dados.data)),
     body(`À Instituição financeira ${dados.bancoNome.trim()}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${dados.bancoCnpj.trim()}, com sede em ${dados.bancoEndereco.trim().replace(/\.$/, "")}.`),
     body([
       `A ${EMPRESA.nome} vem, por meio de procurador qualificado na procuração em anexo, em nome de `,

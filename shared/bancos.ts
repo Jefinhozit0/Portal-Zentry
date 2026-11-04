@@ -48,7 +48,7 @@ export const BANCOS: Banco[] = [
   { id: "stellantis", nome: "Banco Stellantis S.A.", cnpj: "62.237.425/0001-76", endereco: "Avenida Contorno, nº 3455, Galpão 9, sala 10, Paulo Camilo, Betim - MG, CEP: 32669-900", apelidos: ["banco stellantis", "stellantis"] },
   { id: "stellantis-financiamentos", nome: "Stellantis Financiamentos Sociedade de Crédito, Financiamento e Investimento S.A.", cnpj: "03.502.961/0001-92", endereco: "Avenida das Nações Unidas, nº 14261, 15º andar, Ala B, Vila Gertrudes, São Paulo - SP, CEP: 04794-000", apelidos: ["stellantis financiamentos"] },
   { id: "toyota", nome: "Banco Toyota do Brasil S.A.", cnpj: "03.215.790/0001-10", endereco: "Avenida Jornalista Roberto Marinho, nº 85, 3º andar, Cidade Monções, São Paulo - SP, CEP: 04576-010", apelidos: ["toyota"] },
-  { id: "viacredi", nome: "Cooperativa de Crédito Vale do Itajaí – Viacredi", cnpj: "82.639.451/0001-38", endereco: "Rua Hermann Hering, nº 1125, Bom Retiro, Blumenau - SC, CEP: 89010-971", apelidos: ["viacredi"] },
+  { id: "viacredi", nome: "Viacredi Cooperativa de Crédito", cnpj: "82.639.451/0001-38", endereco: "Rua Hermann Hering, nº 1125, Bom Retiro, Blumenau - SC, CEP: 89010-923", apelidos: ["viacredi", "cooperativa de credito vale do itajai"] },
   { id: "volkswagen", nome: "Banco Volkswagen S.A.", cnpj: "59.109.165/0001-49", endereco: "Rua Volkswagen, nº 291, Jabaquara, São Paulo - SP, CEP: 04344-020", apelidos: ["volkswagen", "vw"] },
   { id: "votorantim", nome: "Banco Votorantim S.A.", cnpj: "59.588.111/0001-03", endereco: "Avenida das Nações Unidas, nº 14171, Torre A, 18º andar, Vila Gertrudes, São Paulo - SP, CEP: 04794-000", apelidos: ["votorantim", "banco bv", "bv financeira"] },
   { id: "yamaha", nome: "Banco Yamaha Motor do Brasil S.A.", cnpj: "10.371.492/0001-85", endereco: "Avenida Magalhães de Castro, nº 4800, conj. 71 e 72, Torre 3, Edifício Continental Tower, Cidade Jardim, São Paulo - SP, CEP: 05676-120", apelidos: ["yamaha"] },
@@ -60,18 +60,58 @@ export const BANCOS_POR_NOME = [...BANCOS].sort((a, b) => a.nome.localeCompare(b
 const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const digits = (text: string) => text.replace(/\D/g, "");
 
+const asContractText = (text: string) => normalize(text).replace(/[^a-z0-9.]+/g, " ").trim();
+
+/** CNPJ check digits (mod 11), so a typo never reaches a document. */
+export function cnpjValido(cnpj: string): boolean {
+  const value = digits(cnpj);
+  if (value.length !== 14 || /^(\d)\1+$/.test(value)) return false;
+  const dv = (base: string) => {
+    const weights = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const rest = base.split("").reduce((sum, d, i) => sum + Number(d) * weights[i], 0) % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  const first = dv(value.slice(0, 12));
+  return value === value.slice(0, 12) + first + dv(value.slice(0, 12) + first);
+}
+
+export const formatCnpj = (cnpj: string) => digits(cnpj).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+
+export type BancoNovo = { nome: string; cnpj: string; endereco: string };
+
+/** What is still wrong with a bank the team is registering; the documents print all three fields. */
+export function problemasBanco({ nome, cnpj, endereco }: BancoNovo): string[] {
+  const problems: string[] = [];
+  if (nome.trim().length < 3) problems.push("Informe a razão social do banco.");
+  if (!cnpjValido(cnpj)) problems.push("O CNPJ não é válido: confira os números.");
+  else if (BANCOS.some((banco) => digits(banco.cnpj) === digits(cnpj))) problems.push("Este CNPJ já está na lista de bancos.");
+  if (!/\b\d{5}-?\d{3}\b/.test(endereco)) problems.push("Informe o endereço da sede com o CEP.");
+  return problems;
+}
+
+/** A row of bancos_cadastrados in the shape of the fixed list; it is found in contracts by its legal name. */
+export function bancoDoCadastro(row: { id: number; nome: string; cnpj: string; endereco: string }): Banco {
+  const nome = asContractText(row.nome);
+  const semSufixo = nome.replace(/ (s\.?a\.?|ltda\.?)$/, "");
+  return { id: `cadastro-${row.id}`, nome: row.nome, cnpj: row.cnpj, endereco: row.endereco, apelidos: semSufixo === nome ? [nome] : [nome, semSufixo] };
+}
+
+/** The fixed list and the team's banks, alphabetical, for the lists in the forms. */
+export const listaDeBancos = (cadastrados: Banco[]) => [...BANCOS, ...cadastrados].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
 /**
  * The bank of a contract: by its CNPJ when the contract has one, otherwise by name. When several
  * names match ("Itaú Unibanco" has "itau" in it), the longest one wins.
  */
-export function bancoConhecido(instituicao: string, cnpj = ""): Banco | undefined {
+export function bancoConhecido(instituicao: string, cnpj = "", cadastrados: Banco[] = []): Banco | undefined {
+  const bancos = [...BANCOS, ...cadastrados];
   if (digits(cnpj).length === 14) {
-    const byCnpj = BANCOS.find((banco) => digits(banco.cnpj) === digits(cnpj));
+    const byCnpj = bancos.find((banco) => digits(banco.cnpj) === digits(cnpj));
     if (byCnpj) return byCnpj;
   }
-  const text = ` ${normalize(instituicao).replace(/[^a-z0-9.]+/g, " ")} `;
+  const text = ` ${asContractText(instituicao)} `;
   let best: { banco: Banco; length: number } | undefined;
-  for (const banco of BANCOS) {
+  for (const banco of bancos) {
     for (const apelido of banco.apelidos) {
       if (text.includes(` ${apelido} `) && (!best || apelido.length > best.length)) best = { banco, length: apelido.length };
     }

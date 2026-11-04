@@ -14,7 +14,7 @@ export type ProcessInfo = {
   updated: string;
   progress: number;
   /** Newest first, as the server lists them. */
-  documents: { nome: string; created_at: string }[];
+  documents: { nome: string; created_at: string; enviadoPeloCliente?: boolean }[];
   lastEvent: { titulo: string; created_at: string } | null;
 };
 
@@ -59,13 +59,15 @@ function andamentoReply(p: ProcessInfo) {
 }
 
 function documentosReply(p: ProcessInfo) {
-  const attached = p.documents.length === 0
+  const fromTeam = p.documents.filter((document) => !document.enviadoPeloCliente);
+  const attached = fromTeam.length === 0
     ? "A equipe ainda não anexou documentos ao seu processo."
-    : `A equipe já anexou ${p.documents.length === 1 ? "1 documento" : `${p.documents.length} documentos`} ao seu processo (o mais recente: "${p.documents[0].nome}", em ${day(p.documents[0].created_at)}). Para baixar, abra a seção Documentos em Meu processo.`;
+    : `A equipe já anexou ${fromTeam.length === 1 ? "1 documento" : `${fromTeam.length} documentos`} ao seu processo (o mais recente: "${fromTeam[0].nome}", em ${day(fromTeam[0].created_at)}). Para baixar, abra a seção Documentos em Meu processo.`;
+  const sending = "Para nos enviar um documento assinado ou fotos dele, use o botão \"Enviar documento assinado\" na mesma seção.";
   const needed = p.status === "Pendente documentação"
     ? "Seu processo está aguardando documentos. Se você não sabe o que falta, fale com um atendente e ele explica o que enviar."
     : "Normalmente pedimos documento com foto (RG ou CNH), comprovante de residência e o contrato com o banco. Se faltar algo no seu caso, a equipe avisa por esta conversa.";
-  return `${attached}\n\n${needed}`;
+  return `${attached}\n\n${sending}\n\n${needed}`;
 }
 
 function prazosReply(p: ProcessInfo) {

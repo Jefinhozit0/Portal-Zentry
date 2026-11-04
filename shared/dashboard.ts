@@ -19,6 +19,16 @@ export const DASHBOARD_RULES = {
   chargebackFailedStatuses: ["Negado", "Indeferido", "Perdido", "Cancelado", "Recusado"],
 } as const;
 
+const normalizeStatus = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+/** Where a chargeback stands according to the rules above: won, lost or still open. */
+export function chargebackOutcome(status: unknown): "won" | "lost" | "open" {
+  const value = normalizeStatus(status);
+  if (DASHBOARD_RULES.chargebackSuccessStatuses.some((item) => normalizeStatus(item) === value)) return "won";
+  if (DASHBOARD_RULES.chargebackFailedStatuses.some((item) => normalizeStatus(item) === value)) return "lost";
+  return "open";
+}
+
 /** Lists the dashboard can open already filtered. The ids come from the server, so the list always matches the number. */
 export const CLIENT_LIST_FILTERS = {
   ativos: "Clientes ativos",

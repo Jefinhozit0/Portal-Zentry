@@ -25,7 +25,7 @@ const Leitura = z.object({
   endereco: texto("Endereço residencial do cliente: rua, número, complemento, bairro, cidade/UF e CEP, numa linha."),
   instituicao: texto("Razão social do banco credor, como escrita (ex.: Banco Bradesco Financiamentos S.A.)."),
   cnpjInstituicao: texto("CNPJ do banco credor, no formato 00.000.000/0000-00."),
-  modalidade: z.enum([...MODALIDADES, ""]).describe("\"financiamento\" (veículo/bem, CDC) ou \"empréstimo\" (crédito pessoal, consignado); vazio se não der para saber."),
+  modalidade: z.enum([...MODALIDADES, ""]).describe("\"financiamento veicular\" (veículo, CDC), \"financiamento imobiliário\", \"financiamento\" (outro bem), \"empréstimo consignado\", \"empréstimo pessoal\" (crédito pessoal, CCB), \"empréstimo\" (outro), \"cartão de crédito\"; vazio se não der para saber."),
   garantia: texto("Bem financiado ou dado em garantia: marca, modelo, versão e ano (fabricação/modelo)."),
   valorSolicitado: valor("Valor solicitado/liberado do crédito ou do bem, sem tarifas, seguros e IOF."),
   valorFinanciado: valor("Valor total financiado/devido na contratação: crédito + tarifas + seguros + registro + IOF, antes dos juros."),

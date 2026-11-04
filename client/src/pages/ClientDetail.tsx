@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ArrowLeft, FileText, Phone, Mail, Upload, Trash2, AlertTriangle, ChevronDown, Clock, Plus, Download, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, FileText, Phone, Mail, Upload, Trash2, AlertTriangle, ChevronDown, Clock, Plus, Download, RefreshCw, FileSpreadsheet } from "lucide-react";
 import LaudoDialog from "@/components/LaudoDialog";
-import { MAX_DOCUMENT_BYTES, OLD_SYSTEM_TAG, PROCESS_STATUSES, caseSummary, formatFileSize } from "@shared/processo";
+import { MAX_DOCUMENT_BYTES, NO_NOTICES_TAG, OLD_SYSTEM_TAG, PROCESS_STATUSES, caseSummary, formatFileSize } from "@shared/processo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,6 +99,16 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
     onError: (error) => toast.error(error.message),
   });
   const [isEditingTags, setIsEditingTags] = useState(false);
+  const noticesPaused = savedTags.includes(NO_NOTICES_TAG);
+  const salvarAvisos = trpc.portal.salvarTags.useMutation({
+    onSuccess: (result) => {
+      toast.success(result.tags.includes(NO_NOTICES_TAG) ? "Avisos pausados: o cliente não recebe aviso das mudanças até você retomar." : "Avisos retomados.");
+      setTags(result.tags);
+      detalhe.refetch();
+      utils.portal.clientes.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   const availableTags = ["Urgente", "Documentação pendente", "Aguardando cliente", "VIP", "Em revisão", "Financiamento Veicular"];
   const statusOptions: string[] = PROCESS_STATUSES.map((option) => option.label);
@@ -258,6 +268,20 @@ export default function ClientDetail({ client, onBack, isAdmin }: ClientDetailPr
                   title={fromOldSystem ? "Veio do sistema antigo: a mensagem apresenta o novo portal e convida o cliente a migrar." : undefined}
                 >
                   {reenviarAcesso.isPending ? "Enviando..." : fromOldSystem ? "Enviar convite para o novo portal" : "Reenviar acesso ao portal"}
+                </button>
+              )}
+              {client.id !== undefined && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={salvarAvisos.isPending}
+                  onClick={() => salvarAvisos.mutate({ id: client.id!, tags: noticesPaused ? savedTags.filter((tag) => tag !== NO_NOTICES_TAG) : [...savedTags, NO_NOTICES_TAG] })}
+                  title={noticesPaused
+                    ? "Os avisos de status e documentos estão pausados. Clique para voltar a avisar o cliente."
+                    : "Mudanças de status e documentos anexados deixam de gerar aviso (WhatsApp, e-mail e app) até você retomar. As respostas no chat continuam avisando."}
+                >
+                  {noticesPaused ? <Bell size={14} /> : <BellOff size={14} />}
+                  {salvarAvisos.isPending ? "Salvando..." : noticesPaused ? "Retomar avisos" : "Pausar avisos"}
                 </button>
               )}
             </div>

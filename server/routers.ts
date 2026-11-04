@@ -20,7 +20,7 @@ import { MAINTENANCE_MESSAGE, getPowerState, isUnderMaintenance } from "./_core/
 import { ENV } from "./_core/env";
 import { getPublicUrl } from "./_core/publicUrl";
 import { listarAcoes, registrarAcao } from "./_core/auditoria";
-import { notifyClient, notifyTeamNewMessage } from "./_core/notificacoes";
+import { notifyClient, notifyTeamClientDocument, notifyTeamNewMessage } from "./_core/notificacoes";
 import { checkNewSales } from "./_core/vendasNovas";
 import { getPushPublicKey, savePushSubscription } from "./_core/push";
 import { getWhatsAppWebInfo, logoutWhatsAppWeb } from "./_core/whatsappWeb";
@@ -28,8 +28,8 @@ import { backupJob, jobState } from "./_core/tarefas";
 import QRCode from "qrcode";
 import type { TrpcContext } from "./_core/context";
 import { TICKET_TOPICS, formatTicketMessage, parseTicketMessage } from "@shared/tickets";
-import { MAX_DOCUMENT_BYTES, PROCESS_STATUSES, toneForStatus } from "@shared/processo";
-import { addEvent, deleteDocument, documentDownloadUrl, downloadDocument, listDocuments, listEvents, listLaudos, removeClientFiles, uploadDocument } from "./_core/processo";
+import { CLIENT_DOCUMENT_AUTHOR, MAX_CLIENT_DOCUMENTS_PER_DAY, MAX_DOCUMENT_BYTES, PROCESS_STATUSES, tipoDoDocumentoCliente, toneForStatus } from "@shared/processo";
+import { addEvent, clientDocumentsToday, deleteDocument, documentDownloadUrl, downloadDocument, listDocuments, listEvents, listLaudos, removeClientFiles, uploadDocument } from "./_core/processo";
 import { guardarSeIncompleto, listarFila, removerDaFila } from "./_core/contratoFila";
 import { lerContrato } from "./_core/laudoContrato";
 import { buildLaudoPdf, laudoFileName } from "./_core/laudoPdf";
@@ -39,6 +39,7 @@ import { buildNotificacaoContratoPdf, buildNotificacaoPdf, notificacaoContratoFi
 import { MODALIDADES, problemasNotificacao, problemasNotificacaoContrato } from "@shared/notificacao";
 import { buildTermoPdf, termoFileName } from "./_core/termoPdf";
 import { problemasTermo } from "@shared/termo";
+import { formatCnpj, problemasBanco } from "@shared/bancos";
 import { problemasLaudo } from "@shared/laudo";
 
 const verificationRequestTimes = new Map<string, number>();
@@ -174,7 +175,7 @@ const notificacaoInput = z.object({
   bancoNome: z.string().trim().max(200),
   bancoCnpj: z.string().trim().max(30),
   bancoEndereco: z.string().trim().max(400),
-  cidade: z.string().trim().max(100),
+  estado: z.string().trim().max(100),
   data: z.string().trim().max(10),
 });
 
@@ -189,7 +190,7 @@ const notificacaoContratoInput = z.object({
   bancoNome: z.string().trim().max(200),
   bancoCnpj: z.string().trim().max(30),
   bancoEndereco: z.string().trim().max(400),
-  cidade: z.string().trim().max(100),
+  estado: z.string().trim().max(100),
   data: z.string().trim().max(10),
 });
 
@@ -656,6 +657,31 @@ export const appRouter = router({
         return { tags };
       }),
 
+    /** Banks the team registered, on top of the fixed list. Without the table the forms still offer that list. */
+    bancos: staffProcedure.query(async () => {
+      const { data, error } = await supabase.from("bancos_cadastrados").select("id, nome, cnpj, endereco").order("nome");
+      if (error) {
+        console.warn("[portal.bancos] Supabase error:", error.message);
+        return [];
+      }
+      return data ?? [];
+    }),
+
+    /** Register a bank for the termo and the notificações */
+    cadastrarBanco: staffProcedure
+      .input(z.object({ nome: z.string().trim().max(200), cnpj: z.string().trim().max(30), endereco: z.string().trim().max(300) }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = problemasBanco(input);
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems[0] });
+        const { data, error } = await supabase.from("bancos_cadastrados")
+          .insert({ nome: input.nome, cnpj: formatCnpj(input.cnpj), endereco: input.endereco, cadastrado_por: ctx.staffUser.email })
+          .select("id, nome, cnpj, endereco").single();
+        if (error?.code === "23505") throw new TRPCError({ code: "CONFLICT", message: "Este CNPJ já foi cadastrado." });
+        if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: /does not exist|schema cache/i.test(error.message) ? "O cadastro de bancos ainda não foi ativado: rode supabase/migrations/20261104_bancos_cadastrados.sql no SQL Editor do Supabase." : error.message });
+        await registrarAcao(ctx.staffUser.email, "Cadastrou banco", `${data.nome} · ${data.cnpj}`);
+        return data;
+      }),
+
     /** List chargebacks */
     chargebacks: staffProcedure.query(async () => {
       const { data, error } = await supabase
@@ -959,7 +985,7 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Notificação extrajudicial a ${input.dados.bancoNome} pedindo o contrato`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
-          notifyClient(input.clientId, "documento", "Notificação extrajudicial");
+          notifyClient(input.clientId, "assinatura", "Notificação extrajudicial");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou notificação", `${input.dados.nome} → ${input.dados.bancoNome}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -977,7 +1003,7 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Notificação a ${input.dados.bancoNome} sobre os juros do contrato ${input.dados.contrato}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
-          notifyClient(input.clientId, "documento", "Notificação extrajudicial");
+          notifyClient(input.clientId, "assinatura", "Notificação extrajudicial");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou notificação com contrato", `${input.dados.nome} → ${input.dados.bancoNome}, contrato ${input.dados.contrato}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -1033,7 +1059,7 @@ export const appRouter = router({
           const { data: cliente } = await supabase.from("clientes").select("id, name").eq("id", input.clientId).maybeSingle();
           if (!cliente) throw new TRPCError({ code: "NOT_FOUND", message: "Cliente não encontrado." });
           await uploadDocument(input.clientId, { nome, tipo: "application/pdf", descricao: `Parecer técnico do contrato ${input.dados.contrato}`, bytes: pdf }, ctx.staffUser.email ?? "equipe");
-          notifyClient(input.clientId, "documento", "Parecer técnico");
+          notifyClient(input.clientId, "assinatura", "Parecer técnico");
         }
         await registrarAcao(ctx.staffUser.email, "Gerou laudo", `${input.dados.contratante}: contrato ${input.dados.contrato}`, input.clientId);
         return { nome, conteudo: pdf.toString("base64") };
@@ -1210,6 +1236,7 @@ export const appRouter = router({
         },
         backup: { ...jobState.backup, pasta: path.resolve(ENV.backupDir) },
         lembretes: jobState.lembretes,
+        chargebacks: { ...jobState.chargebacks, planilha: ENV.chargebacksPlanilha || null },
         enderecoPublico: await getPublicUrl(),
         avisosParaClientes: ENV.notifyClients,
       };
@@ -1312,8 +1339,34 @@ export const appRouter = router({
     /** The client's own documents. */
     documentos: clientWithTermsProcedure.query(async ({ ctx }) => {
       const rows = await listDocuments(ctx.clienteId);
-      return rows.map(({ enviado_por: _author, ...row }) => row);
+      return rows.map(({ enviado_por: author, ...row }) => ({ ...row, enviadoPeloCliente: author === CLIENT_DOCUMENT_AUTHOR }));
     }),
+
+    /** A signed document (or photos of it) the client attaches. It only ever goes to the client's own record. */
+    enviarDocumento: clientWithTermsProcedure
+      .input(z.object({
+        nome: z.string().trim().min(1).max(200),
+        /** File content in base64. */
+        conteudo: z.string().min(1).max(Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4 + 4),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const bytes = Buffer.from(input.conteudo, "base64");
+        if (bytes.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "O arquivo está vazio." });
+        if (bytes.length > MAX_DOCUMENT_BYTES) throw new TRPCError({ code: "BAD_REQUEST", message: "O arquivo passa de 10 MB." });
+        const tipo = tipoDoDocumentoCliente(bytes);
+        if (!tipo) throw new TRPCError({ code: "BAD_REQUEST", message: "Envie um PDF ou uma foto (JPG, PNG ou WEBP)." });
+        if (await clientDocumentsToday(ctx.clienteId) >= MAX_CLIENT_DOCUMENTS_PER_DAY) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Você já enviou muitos arquivos hoje. Tente amanhã ou fale com a equipe." });
+        }
+        const { data: cliente } = await supabase.from("clientes").select("name").eq("id", ctx.clienteId).maybeSingle();
+        const nome = input.nome.replace(/[\u0000-\u001f\u007f]/g, "") || "documento";
+        const document = await uploadDocument(ctx.clienteId, { nome, tipo, descricao: "Enviado pelo cliente pelo portal", bytes }, CLIENT_DOCUMENT_AUTHOR);
+        const clientName = (cliente?.name as string | undefined) ?? "Um cliente";
+        await registrarAcao(CLIENT_DOCUMENT_AUTHOR, "Cliente enviou documento", `${clientName}: ${nome}`, ctx.clienteId);
+        notifyTeamClientDocument(ctx.clienteId, clientName, nome);
+        const { enviado_por: _author, ...row } = document;
+        return { ...row, enviadoPeloCliente: true };
+      }),
 
     /** The client's own timeline, without the names of who made each change. */
     historico: clientWithTermsProcedure.query(async ({ ctx }) => {

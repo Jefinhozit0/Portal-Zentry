@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import type { ProcessEventType } from "@shared/processo";
+import { CLIENT_DOCUMENT_AUTHOR, type ProcessEventType } from "@shared/processo";
 import { supabase } from "./supabase";
 
 /**
@@ -87,6 +87,18 @@ export async function uploadDocument(clientId: number, file: { nome: string; tip
   return data as DocumentRow;
 }
 
+/** How many documents this client attached in the portal in the last 24 hours. */
+export async function clientDocumentsToday(clientId: number, now = Date.now()) {
+  const { count, error } = await supabase
+    .from("documentos")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .eq("enviado_por", CLIENT_DOCUMENT_AUTHOR)
+    .gte("created_at", new Date(now - 24 * 60 * 60_000).toISOString());
+  if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível receber o arquivo agora. Tente novamente." });
+  return count ?? 0;
+}
+
 /** A link that downloads the file and stops working after a minute. Null when the document is not this client's. */
 export async function documentDownloadUrl(documentId: number, clientId?: number): Promise<string | null> {
   let query = supabase.from("documentos").select("nome, caminho, client_id").eq("id", documentId);
@@ -117,7 +129,9 @@ export async function listLaudos(limit = 50) {
     console.warn("[documentos] Could not list generated documents:", failed.error.message);
     return [];
   }
+  // A signed copy the client sends back keeps the generated name, but the system did not generate it.
   const data = results.flatMap((result) => result.data ?? [])
+    .filter((row) => row.enviado_por !== CLIENT_DOCUMENT_AUTHOR)
     .sort((a, b) => Date.parse(b.created_at as string) - Date.parse(a.created_at as string))
     .slice(0, limit);
   return data.map((row) => {
