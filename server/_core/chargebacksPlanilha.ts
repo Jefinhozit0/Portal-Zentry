@@ -287,7 +287,7 @@ export function planSync(items: SheetChargeback[], portal: PortalChargeback[], a
     && (!item.data_contestacao || !c.data_contestacao || item.data_contestacao === c.data_contestacao || item.data_venda === c.data_venda)));
   const sameDay = rest.filter((item) => !take(item, (c) =>
     plain(originOf(c) ?? "") === plain(item.aba) && plain(c.client) === plain(item.client) && !!item.data_contestacao && c.data_contestacao === item.data_contestacao));
-  // Same day and a name spelled differently ("Ketti"/"Ketty"), or a reversed one entered elsewhere with value 0.
+  // Same day and a name spelled differently ("Marta"/"Marte"), or a reversed one entered elsewhere with value 0.
   const insert = sameDay.filter((item) => !take(item, (c) =>
     !!item.data_contestacao && c.data_contestacao === item.data_contestacao && firstName(c.client).slice(0, 3) === firstName(item.client).slice(0, 3)
     && (Math.abs(money(c.valor) - item.valor) < 1 || money(c.valor) === 0)));
