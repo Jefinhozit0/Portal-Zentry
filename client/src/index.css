@@ -3659,3 +3659,44 @@ tbody tr.empty-row:hover { background: transparent; }
 @media (max-width: 900px) {
   .client-portal-tabs button[aria-selected="true"] { background: transparent; }
 }
+
+/* Formulário CCMA: the review before generating. */
+.ccma-regra { margin: 4px 0 0; padding: 10px 12px; border-left: 3px solid var(--link); background: var(--surface-muted); border-radius: 4px; color: var(--text); font-size: 13px; }
+.ccma-secao { margin-top: 20px; }
+.ccma-secao > h4 { margin: 0 0 8px; color: var(--text); font-size: 14px; font-weight: 700; }
+.ccma-lista { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ccma-arquivo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.ccma-arquivo > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.ccma-arquivo strong, .ccma-arquivo small { display: block; }
+.ccma-arquivo strong { color: var(--text); font-size: 13px; }
+.ccma-arquivo small { margin-top: 2px; color: var(--text-soft); font-size: 12px; }
+.ccma-campo { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ccma-campo:last-child { border-bottom: 0; padding-bottom: 0; }
+.ccma-campo-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.ccma-campo-linha label, .ccma-item label { display: block; }
+.ccma-campo-linha input, .ccma-item input { width: 100%; margin-top: 6px; }
+.ccma-botoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ccma-campo-linha .ccma-botoes { margin-top: 0; }
+.ccma-botao { min-height: 32px; padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: transparent; color: var(--text); font-size: 12.5px; cursor: pointer; }
+.ccma-botao:hover:not(:disabled) { background: var(--surface-muted); }
+.ccma-botao:disabled { opacity: 0.5; cursor: not-allowed; }
+.ccma-botao-ativo, .ccma-botao-ativo:hover:not(:disabled) { border-color: var(--link); background: var(--link); color: #fff; }
+.ccma-origem { margin: 6px 0 0; color: var(--text-soft); font-size: 12px; overflow-wrap: anywhere; }
+.ccma-evidencia { margin: 4px 0 0; padding-left: 8px; border-left: 2px solid var(--border-strong); color: var(--text-soft); font-size: 12px; overflow-wrap: anywhere; }
+.ccma-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700; }
+.ccma-tag-ok { background: color-mix(in srgb, var(--green, #15803d) 16%, transparent); color: var(--green, #15803d); }
+.ccma-tag-alerta { background: color-mix(in srgb, var(--yellow, #a16207) 18%, transparent); color: var(--yellow, #a16207); }
+.ccma-tag-neutra { background: var(--surface-muted); color: var(--text-soft); }
+.ccma-tag-usuario { background: color-mix(in srgb, var(--link) 16%, transparent); color: var(--link); }
+.ccma-divergencia { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ccma-divergencia li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ccma-divergencia small { flex: 1 1 240px; min-width: 0; color: var(--text-soft); font-size: 12px; overflow-wrap: anywhere; }
+.ccma-pendencias { display: grid; gap: 6px; margin: 0; padding-left: 18px; color: var(--text); font-size: 12.5px; }
+.ccma-impede strong { color: var(--yellow, #a16207); }
+.ccma-previa p { margin: 0 0 4px; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .ccma-campo-linha { grid-template-columns: minmax(0, 1fr); }
+  .ccma-arquivo { flex-direction: column; }
+}
+.ccma .laudo-source > button { flex: none; }
+.ccma-campo-linha input, .ccma-campo-linha select, .ccma-item input { box-sizing: border-box; min-height: 38px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface, transparent); color: var(--text); font-size: 13.5px; }

@@ -66,6 +66,26 @@ function enlarge(image: PageImage, scale = SCALE, fromRow = 0) {
 type OcrWord = { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } };
 type OcrLine = { words: OcrWord[]; bbox: { y0: number; y1: number } };
 
+/** Reads a photo or scanned image (JPEG, PNG) as page 1; empty when it cannot be read. */
+export async function ocrImagem(image: Buffer): Promise<Line[]> {
+  mkdirSync(CACHE, { recursive: true });
+  const worker = await createWorker("por", 1, { cachePath: CACHE, errorHandler: (error: unknown) => console.warn("[ocr] Tesseract could not read an image:", error) });
+  try {
+    const { data } = await worker.recognize(image) as unknown as { data: { lines: OcrLine[] } };
+    return data.lines
+      .map((line): Line => {
+        const items = line.words.map((word) => ({ x: word.bbox.x0, y: -line.bbox.y1, text: word.text.normalize("NFC").trim() })).filter((item) => item.text);
+        return { page: 1, y: -line.bbox.y1, items, text: items.map((item) => item.text).join(" ") };
+      })
+      .filter((line) => line.items.length > 0);
+  } catch (error) {
+    console.warn("[ocr] Image could not be read:", error);
+    return [];
+  } finally {
+    await worker.terminate();
+  }
+}
+
 /** Reads every page's picture; a page without one comes back empty. Same shape as the lines of a text PDF, one item per word. */
 export async function ocrPages(pdf: Awaited<ReturnType<typeof getDocumentProxy>>, maxPages: number): Promise<Line[][]> {
   const pageCount = Math.min(pdf.numPages, maxPages);
