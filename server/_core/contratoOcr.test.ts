@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { getDocumentProxy } from "unpdf";
-import { apagarLinhas, desenharPagina, preencheAPagina } from "./contratoOcr";
+import { createCanvas } from "@napi-rs/canvas";
+import { CNH_CAMPOS } from "./ccmaLeitura";
+import { DRAWN_WIDTH, apagarLinhas, desenharPagina, lerCamposFixos, preencheAPagina } from "./contratoOcr";
 import { renderPdf } from "./pdf";
 
 const A4 = { width: 595, height: 842 };
@@ -23,10 +25,25 @@ describe("OCR de PDF sem texto", () => {
     expect(limpo[11 * width + 3]).toBe(0);
   });
 
+  it("reads the fields of a digital CNH by their place on the card, thin gray print included", async () => {
+    const canvas = createCanvas(963, 680);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#e8e8e8";
+    ctx.fillRect(0, 0, 963, 680);
+    ctx.fillStyle = "#555555";
+    ctx.font = "20px monospace";
+    ctx.fillText("MARIA DA SILVA", 165, 203);
+    ctx.fillText("MG1234567 PC MG", 487, 266);
+    ctx.fillText("529.982.247-25", 488, 332);
+    const { data, width, height } = ctx.getImageData(0, 0, 963, 680);
+    const lidos = await lerCamposFixos({ data, width, height, channels: 4 }, CNH_CAMPOS);
+    expect(lidos).toEqual({ nome: "MARIA DA SILVA", rg: "MG1234567 PC MG", cpf: "529.982.247-25" });
+  }, 60_000);
+
   it("draws a page on a white background", async () => {
     const bytes = await renderPdf({ pageSize: "A4", content: [{ text: "Texto de teste", fontSize: 30 }], defaultStyle: { font: "Roboto" } });
     const { data, width, height, channels } = await desenharPagina(await getDocumentProxy(new Uint8Array(bytes)), 1);
-    expect(width).toBe(3300);
+    expect(width).toBe(DRAWN_WIDTH);
     expect(height).toBeGreaterThan(width);
     expect(channels).toBe(1);
     expect(data[0]).toBe(255);

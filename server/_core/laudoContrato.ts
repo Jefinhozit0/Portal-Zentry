@@ -331,6 +331,12 @@ const SA = /\bS\.?\s?\/?A\b/i;
  * the two lines are joined, and index points at the second one.
  */
 function bankLine(lines: Line[]): { text: string; index: number } {
+  // Safra lists its three companies and marks the creditor: "X SAFRA CRÉDITO, FINANCIAMENTO E INVESTIMENTO S/A , … CNPJ sob o", the number on the next line.
+  const marcado = lines.findIndex((line) => /^X\s/.test(line.text) && BANK.test(line.text) && SA.test(line.text));
+  if (marcado >= 0) {
+    const text = lines[marcado].text.replace(/^X\s+/, "");
+    return { text: /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(text) ? text : `${text} ${lines[marcado + 1]?.text ?? ""}`, index: marcado };
+  }
   for (let index = 0; index < lines.length; index++) {
     const text = lines[index].text;
     if (!BANK.test(text)) continue;

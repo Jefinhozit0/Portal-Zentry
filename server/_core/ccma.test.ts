@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { type CcmaDados, type LeituraArquivo, consolidarCampo, nomeArquivoCcma, partesData, problemasCcma, recomendarItens } from "@shared/ccma";
 import { buildCcmaDocx, preencherDocumentoXml } from "./ccmaDocx";
 import { buildCcmaPdf, ccmaDefinition } from "./ccmaPdf";
-import { extrairDoTexto, tipoArquivoCcma } from "./ccmaLeitura";
+import { extrairDoTexto, limparInstituicao, tipoArquivoCcma } from "./ccmaLeitura";
 import type { Line } from "./laudoContrato";
 
 const dados: CcmaDados = {
@@ -202,6 +202,13 @@ describe("leitura de documentos para o formulário CCMA", () => {
     expect(valor("email")).toBe("maria@exemplo.com");
   });
 
+  it("restores the @ that OCR read as a letter, only next to the e-mail's label and before a known provider", () => {
+    const email = (...textos: string[]) => extrairDoTexto(textos.map((text) => linha(1, text)), "a.pdf").candidatos.find((item) => item.campo === "email")?.valor;
+    expect(email("Endereço, telefone e e-mail: AVENIDA EXEMPLO, 10,", "01000-000, (11)99999-0000, MARIA.SILVAOGMAIL.COM")).toBe("maria.silva@gmail.com");
+    expect(email("Site oficial: MARIA.SILVAOGMAIL.COM")).toBeUndefined();
+    expect(email("E-mail: MARIA.SILVAOEMPRESA.COM")).toBeUndefined();
+  });
+
   it("reads tables with the label above the value, by column", () => {
     const celulas = (...itens: [number, string][]): Line => ({ page: 3, y: 0, items: itens.map(([x, text]) => ({ x, y: 0, text })), text: itens.map(([, text]) => text).join(" ") });
     const { candidatos } = extrairDoTexto([
@@ -214,6 +221,73 @@ describe("leitura de documentos para o formulário CCMA", () => {
       ["nome", "MARIA DA SILVA", 3], ["rg", "M1234567", 3],
       ["documento", "529.982.247-25", 3], ["telefone", "(11)99999-0000", 3], ["profissao", "VENDEDORA", 3],
     ]);
+  });
+
+  const celulas = (...itens: [number, string][]): Line => ({ page: 1, y: 0, items: itens.map(([x, text]) => ({ x, y: 0, text })), text: itens.map(([, text]) => text).join(" ") });
+  const valores = (candidatos: { campo: string; valor: string }[]) => Object.fromEntries(candidatos.map(({ campo, valor }) => [campo, valor]));
+
+  it("reads a cell that wraps, with the other cells of its row between the two lines", () => {
+    const { candidatos } = extrairDoTexto([
+      celulas([20, "CONTRATANTE"], [400, "DATA NASCIMENTO"]),
+      celulas([20, "MARIA DA SILVA"], [400, "10/02/1981"]),
+      celulas([20, "RG"], [150, "CPF/ CNPJ"], [300, "PROFISSÃO"], [450, "ESTADO CIVIL"]),
+      celulas([300, "COORDENADORA DE"]),
+      celulas([20, "1234567-8"], [150, "529.982.247-25"], [450, "Casado(a)"]),
+      celulas([300, "MANUTENÇÃO"]),
+      celulas([20, "EMAIL"], [200, "TELEFONE 1"], [400, "TELEFONE 2"]),
+      celulas([20, "maria@exemplo.com"], [200, "(11) 99999-0000"], [400, "(11) 99999-0000"]),
+    ], "a.pdf");
+    expect(valores(candidatos)).toMatchObject({ nome: "MARIA DA SILVA", rg: "1234567-8", documento: "529.982.247-25", profissao: "COORDENADORA DE MANUTENÇÃO", estadoCivil: "Casado(a)", email: "maria@exemplo.com", telefone: "(11) 99999-0000" });
+  });
+
+  it("does not glue the lines below a complete row to its cells", () => {
+    const { candidatos } = extrairDoTexto([
+      celulas([300, "CPF"], [385, "TELEFONE"], [470, "PROFISSÃO"]),
+      celulas([305, "529.982.247-25"], [388, "(11)99999-0000"], [475, "VENDEDORA"]),
+      celulas([30, "O QUE COBRE"]),
+      celulas([30, "COBERTURAS CONTRADAS"], [325, "CAPITAL SEGURADO"], [475, "CUSTO POR COBERTURA"]),
+    ], "a.pdf");
+    expect(valores(candidatos)).toMatchObject({ documento: "529.982.247-25", profissao: "VENDEDORA" });
+  });
+
+  it("does not take a guarantor's row for the client's", () => {
+    const { candidatos } = extrairDoTexto([
+      celulas([20, "Nome Completo"], [300, "CPF"], [450, "Data de nascimento"]),
+      celulas([20, "MARIA DA SILVA"], [300, "529.982.247-25"], [450, "10/02/1981"]),
+      celulas([20, "1. Nome Completo"], [300, "CPF"]),
+      celulas([20, "JOSE AVALISTA"], [300, "111.444.777-35"]),
+    ], "a.pdf");
+    expect(candidatos.filter(({ campo }) => campo === "nome").map(({ valor }) => valor)).toEqual(["MARIA DA SILVA"]);
+    expect(candidatos.filter(({ campo }) => campo === "documento").map(({ valor }) => valor)).toEqual(["529.982.247-25"]);
+  });
+
+  it("takes the creditor marked with an X among the bank's companies, with its CNPJ on the next line", () => {
+    const { candidatos } = extrairDoTexto([
+      linha(1, "BANCO EXEMPLO S/A , com sede em São Paulo, inscrito no CNPJ sob o nº 11.222.333/0001-81"),
+      linha(1, "X EXEMPLO CRÉDITO, FINANCIAMENTO E INVESTIMENTO S/A , com sede em São Paulo, inscrito no CNPJ sob o"),
+      linha(1, "n.º 11.444.777/0001-61"),
+    ], "a.pdf");
+    expect(valores(candidatos)).toMatchObject({ reclamadoNome: "EXEMPLO CRÉDITO, FINANCIAMENTO E INVESTIMENTO S/A", reclamadoDocumento: "11.444.777/0001-61" });
+  });
+
+  it("does not take the contacts of the insurer or of the company that signs the contract", () => {
+    const { candidatos } = extrairDoTexto([
+      linha(2, "Rua Líbero Badaró 293 - Telefone: (11) 2222-0000."),
+      linha(4, "E-mail: empresasolucoes@gmail.com / Telefone: (11) 2222-0000"),
+      linha(5, "Dados do Estipulante: Telefone: (11) 3333-0000"),
+    ], "a.pdf");
+    expect(candidatos.filter(({ campo }) => campo === "telefone" || campo === "email")).toEqual([]);
+  });
+
+  it("reads 'Nome do cliente' and ignores a blank place to sign", () => {
+    const { candidatos } = extrairDoTexto([linha(14, "Nome do MARIA DA SILVA"), linha(14, "cliente"), linha(20, "Nome: ______________________")], "a.pdf");
+    expect(candidatos.filter(({ campo }) => campo === "nome").map(({ valor }) => valor)).toEqual(["MARIA DA SILVA"]);
+  });
+
+  it("cleans the label and the text glued to the bank's name", () => {
+    expect(limparInstituicao("Banco responsável: BCO EXEMPLO S.A. Valor da parcela: R$ 1.850,99")).toBe("BCO EXEMPLO S.A.");
+    expect(limparInstituicao("Dados do Estipulante: Banco Exemplo S.A |")).toBe("Banco Exemplo S.A");
+    expect(limparInstituicao("EXEMPLO FINANCEIRA S/A")).toBe("EXEMPLO FINANCEIRA S/A");
   });
 
   it("does not take a value from a table when it is not what the column asks for", () => {
