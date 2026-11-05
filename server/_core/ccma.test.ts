@@ -188,6 +188,40 @@ describe("leitura de documentos para o formulário CCMA", () => {
     expect(candidatos[0]).toMatchObject({ campo: "nome", valor: "MARIA DA SILVA", pagina: 1 });
   });
 
+  it("reads a Santander contract: RG with a letter, and the phone on the line below its label", () => {
+    const { candidatos } = extrairDoTexto([
+      linha(1, "Nome/Razão Social do Cliente: MARIA DA SILVA"),
+      linha(1, "A CPF/CNPJ : 529.982.247-25 RG: M1234567"),
+      linha(1, "Endereço, telefone e e-mail: AVENIDA EXEMPLO, 10, CENTRO,"),
+      linha(1, "01000-000, (11)99999-0000, MARIA@EXEMPLO.COM"),
+    ], "a.pdf");
+    const valor = (campo: string) => candidatos.find((item) => item.campo === campo)?.valor;
+    expect(valor("documento")).toBe("529.982.247-25");
+    expect(valor("rg")).toBe("M1234567");
+    expect(valor("telefone")).toBe("(11)99999-0000");
+    expect(valor("email")).toBe("maria@exemplo.com");
+  });
+
+  it("reads tables with the label above the value, by column", () => {
+    const celulas = (...itens: [number, string][]): Line => ({ page: 3, y: 0, items: itens.map(([x, text]) => ({ x, y: 0, text })), text: itens.map(([, text]) => text).join(" ") });
+    const { candidatos } = extrairDoTexto([
+      celulas([20, "NOME"], [360, "RG"], [375, "OU"], [390, "Nº"], [405, "PASSAPORTE"], [490, "UF"]),
+      celulas([25, "MARIA"], [60, "DA"], [80, "SILVA"], [368, "M1234567"], [495, "MG"]),
+      celulas([20, "CEP"], [105, "CIDADE"], [190, "PAÍS"], [300, "CPF"], [385, "TELEFONE"], [470, "PROFISSÃO"]),
+      celulas([25, "01000-000"], [105, "SAO"], [130, "PAULO"], [195, "BRASIL"], [305, "529.982.247-25"], [388, "(11)99999-0000"], [475, "VENDEDORA"]),
+    ], "a.pdf");
+    expect(candidatos.map(({ campo, valor, pagina }) => [campo, valor, pagina])).toEqual([
+      ["nome", "MARIA DA SILVA", 3], ["rg", "M1234567", 3],
+      ["documento", "529.982.247-25", 3], ["telefone", "(11)99999-0000", 3], ["profissao", "VENDEDORA", 3],
+    ]);
+  });
+
+  it("does not take a value from a table when it is not what the column asks for", () => {
+    const celulas = (...itens: [number, string][]): Line => ({ page: 3, y: 0, items: itens.map(([x, text]) => ({ x, y: 0, text })), text: itens.map(([, text]) => text).join(" ") });
+    const { candidatos } = extrairDoTexto([celulas([20, "CPF"], [200, "TELEFONE"]), celulas([25, "111.111.111-11"], [205, "não informado"])], "a.pdf");
+    expect(candidatos).toEqual([]);
+  });
+
   it("keeps the excerpts that mention part 4's subjects", () => {
     const { evidencias } = extrairDoTexto([linha(5, "poderá requerer a busca e apreensão do bem"), linha(6, "juros do crédito rotativo")], "a.pdf");
     expect(evidencias.map(({ tipo, pagina }) => [tipo, pagina])).toEqual([["busca", 5], ["rotativo", 6]]);

@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { PNG } from "pngjs";
 import { createScheduler, createWorker } from "tesseract.js";
-import { extractImages, type getDocumentProxy } from "unpdf";
+import { extractImages, type getDocumentProxy, renderPageAsImage } from "unpdf";
 import type { Line } from "./laudoContrato";
 
 /**
@@ -63,6 +63,54 @@ function enlarge(image: PageImage, scale = SCALE, fromRow = 0) {
   return PNG.sync.write(png);
 }
 
+type Pdf = Awaited<ReturnType<typeof getDocumentProxy>>;
+
+/** Whether a picture fills a page of these proportions, as a scan does; a banner, logo or barcode does not. */
+export function preencheAPagina(image: { width: number; height: number }, page: { width: number; height: number }) {
+  if (image.width < 300) return false;
+  return Math.abs(image.height / image.width - page.height / page.width) <= 0.25 * (page.height / page.width);
+}
+
+/** Dark strokes at least this long (at BODY_WIDTH) are table borders and barcode bars: no letter is that long. */
+const MIN_LINE = 90;
+const DARK = 140;
+
+/** White over long straight strokes, which make Tesseract lose the rows of a table. */
+export function apagarLinhas(data: Uint8ClampedArray, width: number, height: number, minimo = MIN_LINE) {
+  const out = new Uint8ClampedArray(data);
+  const scan = (count: number, length: number, at: (line: number, position: number) => number) => {
+    for (let line = 0; line < count; line++) {
+      let start = -1;
+      for (let position = 0; position <= length; position++) {
+        const dark = position < length && data[at(line, position)] < DARK;
+        if (dark && start < 0) start = position;
+        if (!dark && start >= 0) {
+          if (position - start >= minimo) for (let i = start; i < position; i++) out[at(line, i)] = 255;
+          start = -1;
+        }
+      }
+    }
+  };
+  scan(height, width, (y, x) => y * width + x);
+  scan(width, height, (x, y) => y * width + x);
+  return out;
+}
+
+/**
+ * The whole page drawn as a picture, in gray on white, without table borders. Some PDFs have no text and no scan: each
+ * letter is a vector shape (a Santander contract signed on a tablet), and the only pictures are barcodes and logos.
+ */
+export async function desenharPagina(pdf: Pdf, pageNumber: number): Promise<PageImage> {
+  const png = await renderPageAsImage(await pdf.getData(), pageNumber, { canvasImport: () => import("@napi-rs/canvas"), width: BODY_WIDTH });
+  const { data, width, height } = PNG.sync.read(Buffer.from(png));
+  const gray = new Uint8ClampedArray(width * height);
+  for (let i = 0; i < gray.length; i++) {
+    const at = i * 4, alpha = data[at + 3] / 255;
+    gray[i] = (0.299 * data[at] + 0.587 * data[at + 1] + 0.114 * data[at + 2]) * alpha + 255 * (1 - alpha);
+  }
+  return { data: apagarLinhas(gray, width, height), width, height, channels: 1 };
+}
+
 type OcrWord = { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } };
 type OcrLine = { words: OcrWord[]; bbox: { y0: number; y1: number } };
 
@@ -87,7 +135,7 @@ export async function ocrImagem(image: Buffer): Promise<Line[]> {
 }
 
 /** Reads every page's picture; a page without one comes back empty. Same shape as the lines of a text PDF, one item per word. */
-export async function ocrPages(pdf: Awaited<ReturnType<typeof getDocumentProxy>>, maxPages: number): Promise<Line[][]> {
+export async function ocrPages(pdf: Pdf, maxPages: number): Promise<Line[][]> {
   const pageCount = Math.min(pdf.numPages, maxPages);
   // tesseract.js does not create the folder: without it the model is downloaded again on every reading.
   mkdirSync(CACHE, { recursive: true });
@@ -96,16 +144,24 @@ export async function ocrPages(pdf: Awaited<ReturnType<typeof getDocumentProxy>>
   // takes the whole server down; with it, the job just fails and its page comes back empty.
   const errorHandler = (error: unknown) => console.warn("[ocr] Tesseract could not read a page:", error);
   for (let i = 0; i < Math.min(WORKERS, pageCount); i++) scheduler.addWorker(await createWorker("por", 1, { cachePath: CACHE, errorHandler }));
+  let fila: Promise<unknown> = Promise.resolve();
+  const desenharEmFila = (pageNumber: number) => {
+    const desenho = fila.catch(() => undefined).then(() => desenharPagina(pdf, pageNumber));
+    fila = desenho;
+    return desenho;
+  };
   try {
     return await Promise.all(Array.from({ length: pageCount }, async (_, index) => {
       const pageNumber = index + 1;
       const images = await extractImages(pdf, pageNumber);
       // The scan is the page's largest picture; small ones are logos and QR codes.
-      const image = images.sort((a, b) => b.width * b.height - a.width * a.height)[0];
-      if (!image || image.width < 300) return [];
-      const scale = Math.max(1, Math.min(SCALE, BODY_WIDTH / image.width));
-      const footerScale = Math.max(1, Math.min(FOOTER_SCALE, FOOTER_WIDTH / image.width));
+      const largest = images.sort((a, b) => b.width * b.height - a.width * a.height)[0];
       try {
+        const { width, height } = (await pdf.getPage(pageNumber)).getViewport({ scale: 1 });
+        // One page at a time: a drawn page is large in memory.
+        const image = largest && preencheAPagina(largest, { width, height }) ? largest : await desenharEmFila(pageNumber);
+        const scale = Math.max(1, Math.min(SCALE, BODY_WIDTH / image.width));
+        const footerScale = Math.max(1, Math.min(FOOTER_SCALE, FOOTER_WIDTH / image.width));
         const { data } = await scheduler.addJob("recognize", enlarge(image, scale)) as unknown as { data: { lines: OcrLine[] } };
         const footerRow = Math.floor(image.height * (1 - FOOTER_SHARE));
         const { data: footer } = pageNumber <= FOOTER_PAGES

@@ -18,7 +18,7 @@ const PROXIMO_ROTULO = /\s+(?:Estado Civil|Profiss[ãa]o|Ocupa[çc][ãa]o|Renda|
 
 const REGRAS: { campo: CampoCcma; regex: RegExp; aceita?: (valor: string) => boolean }[] = [
   { campo: "documento", regex: /\bCPF\b[^\d]{0,20}(\d{3}\.?\s?\d{3}\.?\s?\d{3}\s?-?\s?\d{2})\b/i, aceita: (valor) => cpfValido(valor) },
-  { campo: "rg", regex: /\b(?:R\.?G\.?|Registro Geral|Identidade)\b[^\dA-Za-z]{0,10}(?:n[º°o.]*\s*)?(\d[\d.\-xX]{4,14})/i },
+  { campo: "rg", regex: /\b(?:R\.?G\.?|Registro Geral|Identidade)\b[^\dA-Za-z]{0,10}(?:n[º°o.]*\s*)?((?:[A-Z]{1,2}-?)?\d[\d.\-xX]{4,14})/i },
   { campo: "profissao", regex: /\b(?:Profiss[ãa]o|Ocupa[çc][ãa]o)\s*[:-]\s*([^\d,;|]{3,50})/i },
   { campo: "estadoCivil", regex: /\bEstado Civil\s*[:-]?\s*(solteir[oa](?:\(a\))?|casad[oa](?:\(a\))?|divorciad[oa](?:\(a\))?|vi[úu]v[oa](?:\(a\))?|separad[oa](?:\(a\))?|uni[ãa]o est[áa]vel)/i },
   { campo: "telefone", regex: /\b(?:Telefone|Celular|Fone|Tel\.)\s*[^\d(]{0,15}(\(?[1-9]\d\)?\s?9?\d{4}[-\s]?\d{4})\b/i },
@@ -48,6 +48,34 @@ function localizar(lines: Line[], valor: string) {
   return lines.find((line) => (digitos ? line.text.replace(/\D/g, "") : line.text.toLowerCase()).includes(procurado));
 }
 
+const TELEFONE = /\(\d{2}\)\s?9?\d{4}[-\s]?\d{4}\b/;
+/** Tables with the label above the value, read by column (Santander's insurance proposal: "NOME  RG OU Nº PASSAPORTE  UF"). */
+const COLUNAS: { campo: CampoCcma; rotulo: RegExp; aceita: (valor: string) => boolean }[] = [
+  { campo: "nome", rotulo: /^NOME$/, aceita: (valor) => /^[A-ZÀ-Ý][A-ZÀ-Ý .'-]{4,69}$/.test(valor) },
+  { campo: "rg", rotulo: /^RG$/, aceita: (valor) => /^(?:[A-Z]{1,2}-?)?\d[\d.\-xX]{4,14}$/i.test(valor) },
+  { campo: "documento", rotulo: /^CPF$/, aceita: (valor) => cpfValido(valor) },
+  { campo: "telefone", rotulo: /^TELEFONE$/, aceita: (valor) => TELEFONE.test(valor) },
+  { campo: "profissao", rotulo: /^PROFISS[ÃA]O$/, aceita: (valor) => /^[A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,49}$/.test(valor) },
+];
+/** How far left of its label a column's value may start, in points. */
+const FOLGA_COLUNA = 8;
+/** Words of one label start closer than this, in points; the next column starts farther. */
+const ESPACO_ENTRE_COLUNAS = 40;
+
+/** The value under each label of a header line: the words of the next line that start in the label's column. */
+function lerColunas(header: Line, valores: Line | undefined) {
+  if (!valores || valores.page !== header.page) return [];
+  // A column ends where the next one starts, not at the next word of its own label ("RG OU Nº PASSAPORTE").
+  const proximaColuna = (index: number) => header.items.find((item, at) => at > index && item.x - header.items[at - 1].x > ESPACO_ENTRE_COLUNAS);
+  const rotulos = header.items.map((item, index) => ({ item, next: proximaColuna(index), regra: COLUNAS.find(({ rotulo }) => rotulo.test(item.text)) }));
+  if (rotulos.filter(({ regra }) => regra).length < 2) return [];
+  return rotulos.flatMap(({ item, next, regra }) => {
+    if (!regra) return [];
+    const valor = valores.items.filter(({ x }) => x >= item.x - FOLGA_COLUNA && (!next || x < next.x - FOLGA_COLUNA)).map(({ text }) => text).join(" ");
+    return valor && regra.aceita(valor) ? [{ campo: regra.campo, valor }] : [];
+  });
+}
+
 /** Everything the lines of one file say, with its origin. Exported apart from the reading so it can be tested. */
 export function extrairDoTexto(lines: Line[], arquivo: string): Pick<LeituraArquivo, "tipo" | "candidatos" | "evidencias"> {
   const candidatos: Candidato[] = [];
@@ -67,6 +95,11 @@ export function extrairDoTexto(lines: Line[], arquivo: string): Pick<LeituraArqu
     }
     // ID cards and driver's licenses print the label alone, with the name on the line below.
     if (/^NOME$/i.test(line.text.trim()) && /^[A-ZÀ-Ý][A-ZÀ-Ý .'-]{4,69}$/.test(lines[index + 1]?.text.trim() ?? "")) add("nome", lines[index + 1].text, lines[index + 1]);
+    for (const { campo, valor } of lerColunas(line, lines[index + 1])) add(campo, valor, lines[index + 1]);
+    // Santander: "Endereço, telefone e e-mail: AV. EXEMPLO, 10," with the phone wrapped to the line below.
+    const anterior = lines[index - 1];
+    const telefone = /telefone/i.test(line.text) || (anterior?.page === line.page && /telefone/i.test(anterior.text)) ? line.text.match(TELEFONE)?.[0] : undefined;
+    if (telefone) add("telefone", telefone, line);
     for (const { tipo, regex } of EVIDENCIAS) {
       if (regex.test(line.text) && evidencias.filter((item) => item.tipo === tipo).length < MAX_EVIDENCIAS) {
         evidencias.push({ tipo, arquivo, pagina: line.page, trecho: trecho(line.text) });
