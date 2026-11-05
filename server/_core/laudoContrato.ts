@@ -30,7 +30,7 @@ const QUADRO_RESUMO_PAGES = 4;
  * pages often come out of order or with some missing; without it, no lines and scanned: true.
  * documento is the text of every line of every page read, for the account that checks the numbers (contratoConta.ts).
  */
-async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, maxPages = 20): Promise<{ lines: Line[]; documento: string[]; scanned: boolean }> {
+export async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, maxPages = 20): Promise<{ lines: Line[]; documento: string[]; scanned: boolean; paginas: number }> {
   const pdf = await getDocumentProxy(bytes);
   const pages: Line[][] = [];
   for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, maxPages); pageNumber++) {
@@ -53,16 +53,16 @@ async function readLines(bytes: Uint8Array, useOcr: boolean, firstPages = 3, max
     pages.push(pageLines);
   }
   if (pages.every((page) => page.length === 0)) {
-    if (!useOcr) return { lines: [], documento: [], scanned: true };
+    if (!useOcr) return { lines: [], documento: [], scanned: true, paginas: pdf.numPages };
     const scanned = await ocrPages(pdf, maxPages);
     const quadro = scanned.find((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text) || QUADRO_RESUMO.test(line.text)));
     const lines = (quadro ? [quadro, ...scanned.filter((page) => page !== quadro)] : scanned).flat();
-    return { lines, documento: lines.map((line) => line.text), scanned: true };
+    return { lines, documento: lines.map((line) => line.text), scanned: true, paginas: pdf.numPages };
   }
   const padrao = pages.findIndex((page) => page.slice(0, 12).some((line) => QUADRO_PADRAO.test(line.text)));
   const resumo = pages.findIndex((page, index) => index >= firstPages && page.slice(0, 12).some((line) => QUADRO_RESUMO.test(line.text)));
   const quadro = padrao >= 0 ? pages.slice(padrao, padrao + 1) : resumo >= 0 ? pages.slice(resumo, resumo + QUADRO_RESUMO_PAGES) : [];
-  return { lines: [...quadro, ...pages.filter((page, index) => index < firstPages && !quadro.includes(page))].flat(), documento: pages.flat().map((line) => line.text), scanned: false };
+  return { lines: [...quadro, ...pages.filter((page, index) => index < firstPages && !quadro.includes(page))].flat(), documento: pages.flat().map((line) => line.text), scanned: false, paginas: pdf.numPages };
 }
 
 /** Amounts written with R$ on the line, in order; without R$, plain numbers that are not percentages. */

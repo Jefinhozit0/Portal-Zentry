@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ClipboardCheck, Download, FileSignature, FileSpreadsheet, Mail, MailWarning, User } from "lucide-react";
+import { ClipboardCheck, Download, FileSignature, FileSpreadsheet, Mail, MailWarning, Scale, User } from "lucide-react";
 import { toast } from "sonner";
 import { formatFileSize } from "@shared/processo";
+import { CcmaForm } from "@/components/CcmaForm";
 import { LaudoForm } from "@/components/LaudoDialog";
 import { NotificacaoForm } from "@/components/NotificacaoForm";
 import { ProcuracaoForm } from "@/components/ProcuracaoForm";
@@ -17,11 +18,12 @@ const MODELOS = [
   { id: "notificacao-contrato", label: "Notificação com contrato", icon: MailWarning, help: "Notificação ao banco contestando a taxa de juros do contrato e pedindo a devolução. Envie o contrato em PDF para preencher tudo." },
   { id: "notificacao", label: "Notificação manual", icon: Mail, help: "Notificação ao banco pedindo a cópia do contrato, quando o cliente não tem. Digite os dados ou envie o que houver em PDF." },
   { id: "termo", label: "Termo de prestação de serviços", icon: ClipboardCheck, help: "Termo que comunica ao cliente a notificação extrajudicial enviada ao banco." },
+  { id: "ccma", label: "Formulário CCMA", icon: Scale, help: "Solicitação de audiência extrajudicial na CCMA: os documentos sugerem os dados, e você confere e aprova antes de gerar." },
 ] as const;
 type Modelo = (typeof MODELOS)[number]["id"];
 
-/** Documents the team generates (laudos, procurações), and the ones already attached to clients. */
-export default function LaudosPage({ onOpenClient }: { onOpenClient: (row: Record<string, unknown>) => void }) {
+/** Documents the team generates (laudos, procurações), and the ones already attached to clients. The CCMA form is for administrators only. */
+export default function LaudosPage({ onOpenClient, isAdmin }: { onOpenClient: (row: Record<string, unknown>) => void; isAdmin: boolean }) {
   const [modelo, setModelo] = useState<Modelo>("laudo");
   const clientesQuery = trpc.portal.clientes.useQuery(undefined, { retry: false });
   const laudosQuery = trpc.portal.laudos.useQuery(undefined, { retry: false });
@@ -51,7 +53,7 @@ export default function LaudosPage({ onOpenClient }: { onOpenClient: (row: Recor
       <div className="panel-heading laudos-heading">
         <div><h3>Novo documento</h3><p>{current.help}</p></div>
         <div className="filter-buttons" role="tablist" aria-label="Modelo de documento">
-          {MODELOS.map((item) => <button key={item.id} type="button" role="tab" aria-selected={modelo === item.id} className={modelo === item.id ? "filter-active" : ""} onClick={() => setModelo(item.id)}>
+          {MODELOS.filter((item) => item.id !== "ccma" || isAdmin).map((item) => <button key={item.id} type="button" role="tab" aria-selected={modelo === item.id} className={modelo === item.id ? "filter-active" : ""} onClick={() => setModelo(item.id)}>
             <item.icon size={14} /> {item.label}
           </button>)}
         </div>
@@ -61,6 +63,7 @@ export default function LaudosPage({ onOpenClient }: { onOpenClient: (row: Recor
       {modelo === "notificacao-contrato" && <NotificacaoForm key="contrato" tipo="contrato" clients={clients} onDone={onDone} />}
       {modelo === "notificacao" && <NotificacaoForm key="manual" tipo="manual" clients={clients} onDone={onDone} />}
       {modelo === "termo" && <TermoForm clients={clients} onDone={onDone} />}
+      {modelo === "ccma" && isAdmin && <CcmaForm />}
     </section>
 
     <section className="panel">

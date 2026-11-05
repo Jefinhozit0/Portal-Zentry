@@ -998,7 +998,7 @@ export default function Home() {
           {view === "chargebacks" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><ChargebacksPage listFilter={chargebackFilter} onClearFilter={() => setListFilter(null)} isAdmin={isAdmin} draft={chargebackDraft} onDraftUsed={clearChargebackDraft} onOpenClient={openClientRow} /></Suspense>}
           {view === "atendimento" && <AtendimentoPage isAdmin={isAdmin} />}
           {view === "termos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><TermosPage onOpenClient={openClientRow} /></Suspense>}
-          {view === "laudos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><LaudosPage onOpenClient={openClientRow} /></Suspense>}
+          {view === "laudos" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><LaudosPage onOpenClient={openClientRow} isAdmin={isAdmin} /></Suspense>}
           {view === "admin" && isAdmin && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><AdminPage /></Suspense>}
           {view === "saleshub" && <Suspense fallback={<div className="page-content"><LoadingRows /></div>}><SalesHubPage userName={userName} isAdmin={isAdmin} onChargeback={(draft) => { setChargebackDraft(draft); navigate("chargebacks"); }} /></Suspense>}
           <footer className="app-footer">© 2026 Zentry Soluções <span>·</span> Todos os direitos reservados.</footer>

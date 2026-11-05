@@ -32,6 +32,10 @@ import { CLIENT_DOCUMENT_AUTHOR, MAX_CLIENT_DOCUMENTS_PER_DAY, MAX_DOCUMENT_BYTE
 import { addEvent, clientDocumentsToday, deleteDocument, documentDownloadUrl, downloadDocument, listDocuments, listEvents, listLaudos, removeClientFiles, uploadDocument } from "./_core/processo";
 import { guardarSeIncompleto, listarFila, removerDaFila } from "./_core/contratoFila";
 import { lerContrato } from "./_core/laudoContrato";
+import { lerDocumentoCcma, tipoArquivoCcma } from "./_core/ccmaLeitura";
+import { buildCcmaDocx } from "./_core/ccmaDocx";
+import { buildCcmaPdf } from "./_core/ccmaPdf";
+import { ITENS_CCMA, nomeArquivoCcma, problemasCcma } from "@shared/ccma";
 import { buildLaudoPdf, laudoFileName } from "./_core/laudoPdf";
 import { buildProcuracaoPdf, procuracaoFileName } from "./_core/procuracaoPdf";
 import { problemasProcuracao } from "@shared/procuracao";
@@ -128,6 +132,16 @@ function isAdminUser(user: { email?: string; app_metadata?: Record<string, unkno
   if (user.app_metadata?.role === "admin") return true;
   return Boolean(user.email && ENV.adminEmails.includes(user.email.toLowerCase()));
 }
+
+/** The CCMA form (CcmaDados in shared/ccma.ts); problemasCcma gives the limits of each field in words. */
+const textoCcma = z.string().trim().max(300);
+const ccmaInput = z.object({
+  pedido: textoCcma,
+  reclamante: z.object({ nome: textoCcma, rg: textoCcma, documento: textoCcma, profissao: textoCcma, estadoCivil: textoCcma, telefone: textoCcma, whatsapp: textoCcma, email: textoCcma }),
+  reclamado: z.object({ nome: textoCcma, documento: textoCcma }),
+  itens: z.array(z.object({ id: z.enum(ITENS_CCMA.map((item) => item.id) as [typeof ITENS_CCMA[number]["id"]]), texto: textoCcma })).max(ITENS_CCMA.length),
+  data: z.string().max(10),
+});
 
 const valor = z.number().min(0).max(1e9);
 /** The laudo form (LaudoDados in shared/laudo.ts). */
@@ -972,6 +986,37 @@ export const appRouter = router({
 
     /** Laudos attached to clients, for the Laudos screen. */
     laudos: staffProcedure.query(() => listLaudos()),
+
+    /** Reads one document for the CCMA form, on this machine. Nothing is kept: the reading only proposes values for review. */
+    lerDocumentoCcma: adminOnlyProcedure
+      .input(z.object({ nome: z.string().trim().min(1).max(200), conteudo: z.string().min(1).max(Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4 + 4) }))
+      .mutation(async ({ ctx, input }) => {
+        const bytes = new Uint8Array(Buffer.from(input.conteudo, "base64"));
+        if (!tipoArquivoCcma(bytes)) throw new TRPCError({ code: "BAD_REQUEST", message: "Envie um PDF ou uma imagem (JPG ou PNG)." });
+        try {
+          const leitura = await lerDocumentoCcma(bytes, input.nome);
+          await registrarAcao(ctx.staffUser.email, "Leu documento para o formulário CCMA", input.nome);
+          return leitura;
+        } catch (error) {
+          console.warn("[ccma] Could not read document:", error instanceof Error ? error.message : error);
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Não foi possível ler esse arquivo." });
+        }
+      }),
+
+    /** The CCMA form, only for the version an administrator expressly approved: the Word file and its PDF. Not sent anywhere. */
+    gerarFormularioCcma: adminOnlyProcedure
+      .input(z.object({ aprovado: z.literal(true), dados: ccmaInput }))
+      .mutation(async ({ ctx, input }) => {
+        const problems = problemasCcma(input.dados);
+        if (problems.length) throw new TRPCError({ code: "BAD_REQUEST", message: problems.join(" ") });
+        const nome = nomeArquivoCcma(input.dados);
+        const pdf = await buildCcmaPdf(input.dados);
+        await registrarAcao(ctx.staffUser.email, "Gerou formulário CCMA", `${input.dados.reclamante.nome} → ${input.dados.reclamado.nome}`);
+        return {
+          docx: { nome: `${nome}.docx`, conteudo: buildCcmaDocx(input.dados).toString("base64") },
+          pdf: { nome: `${nome}.pdf`, conteudo: pdf.toString("base64") },
+        };
+      }),
 
     /** Notificação extrajudicial asking the bank for the contract, as a PDF; optionally saved among the client's documents. */
     gerarNotificacao: staffProcedure
